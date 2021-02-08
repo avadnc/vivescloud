@@ -1,0 +1,23 @@
+{
+    "name": "php-objects/php-objects",
+    "description": "Primitive types behaving like grown up objects",
+    "homepage":"https://github.com/mjacobus/php-objects",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marcelo Jacobus",
+            "email": "marcelo.jacobus@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "phpunit/PHPUnit": "3.7.*",
+        "phpmd/phpmd": "*",
+        "fabpot/php-cs-fixer": "dev-master",
+        "sebastian/phpdcd": "*",
+        "sebastian/phpcpd": "*",
+        "satooshi/php-coveralls": "dev-master"
+    },
+    "autoload": {
+        "psr-0": {"PO\\": "lib"}
+    }
+}

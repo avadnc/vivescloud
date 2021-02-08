@@ -1,0 +1,25 @@
+{
+    "name": "php-objects/query-builder",
+    "description": "Query Builder - Making SQL composing easier",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marcelo Jacobus",
+            "email": "marcelo.jacobus@gmail.com"
+        }
+    ],
+    "require": {
+        "php-objects/php-objects": "0.9.*"
+    },
+    "require-dev": {
+        "phpunit/PHPUnit": "3.7.*",
+        "phpmd/phpmd": "*",
+        "fabpot/php-cs-fixer": "dev-master",
+        "sebastian/phpdcd": "*",
+        "sebastian/phpcpd": "*",
+        "satooshi/php-coveralls": "dev-master"
+    },
+    "autoload": {
+        "psr-0": {"PO\\": "lib"}
+    }
+}

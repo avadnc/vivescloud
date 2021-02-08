@@ -1,0 +1,12 @@
+{
+    "require": {
+        "eclipxe/cfdiutils": "^2.14",
+        "nilportugues/sql-query-builder": "^1.8",
+        "latitude/latitude": "^4.2",
+        "php-objects/query-builder": "^0.9.4",
+        "guzzlehttp/guzzle": "7.0",
+        "twbs/bootstrap": "5.0.0-beta1",
+        "select2/select2": "^4.0",
+        "endroid/qr-code": "^3.9"
+    }
+}

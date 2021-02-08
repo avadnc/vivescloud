@@ -1,0 +1,20 @@
+SELECT p.rowid facid, p.ref ref, t.nom AS customer, p.datef AS date,
+                        date_format( datef, '%d/%m/%Y' ) AS fecha, p.paye AS idstatus, CASE p.paye
+                        WHEN '0'
+                        THEN 'No'
+                        WHEN '1'
+                        THEN 'Yes'
+                        ELSE 'Unknown'
+                        END AS
+                        paid, ROUND(p.multicurrency_total_ht,2) total, ROUND(p.multicurrency_total_tva,2) vat, ROUND(p.multicurrency_total_ttc,2) total_ttc, t.rowid rowid,
+                        date_format( p.datef, '%m' ) AS
+                        month, 
+p.multicurrency_code AS moneda,
+date_format( p.datef, '%Y' ) AS year, IF(t.siren = '',t.tva_intra,t.siren) as siren
+                        FROM llx_facture p
+                        INNER JOIN llx_societe t ON t.rowid = p.fk_soc
+                        LEFT JOIN llx_categorie_societe cats ON cats.fk_soc = t.rowid
+                        LEFT JOIN llx_categorie cat ON cat.rowid = cats.fk_categorie
+                        WHERE 1 = 1 AND p.entity=1 [AND p.ref LIKE '{Ref,false}' ] GROUP BY p.rowid , p.ref, t.nom,
+                        p.paye, p.multicurrency_total_ht, p.multicurrency_total_tva, p.multicurrency_total_ttc,t.siren, moneda
+                        ORDER BY moneda,customer

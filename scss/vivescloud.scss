@@ -1,0 +1,14 @@
+@import "../vendor/twbs/bootstrap/scss/bootstrap.scss";
+
+.tabsAction {
+  @extend .float-end;
+  @extend .btn-group;
+}
+.butAction {
+  @extend .btn;
+  @extend .btn-outline-primary;
+}
+
+.tableforfield {
+  @extend .table;
+}
