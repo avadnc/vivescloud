@@ -240,6 +240,10 @@ if ($moneda == 'dolar') {
     $update->set(array(
         'label' => $valor_moneda,
     ))->where('code', 'USD');
+    
+    $db->begin();
+    $db->query($update->toSql());
+    $db->commit();
 
     $insert = PO\QueryBuilder::insert();
     $insert->into(MAIN_DB_PREFIX . 'vivescloud_tipocambio_registro')->values(array(

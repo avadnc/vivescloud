@@ -135,18 +135,19 @@ class MovimientoStocksProductos
                 if ($consulta != null) {
 
                     if ($accion == "sumar") {
+                       
 
                         $datosActualiza = [
-                            'reel' => $cantidad + $obj->stock,
+                            'reel' => $cantidad + $consulta->stock,
                         ];
-
+                       
                         $actualizar = $this->actualizarTabla('product_stock', $consulta->idstock, $datosActualiza);
                         $datosActualiza = null;
 
                         if ($actualizar == true) {
 
                             $datosActualiza = [
-                                'qty' => $cantidad + $obj->qty,
+                                'qty' => $cantidad + $consulta->qty,
                             ];
 
                             $actualizar = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);

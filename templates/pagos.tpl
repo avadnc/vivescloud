@@ -1,141 +1,97 @@
 {include file="header.tpl"}
-<div>
-    <table class="border centpercent">
-        <tr>
-            <td>
-                <label for="fechainicio">Fecha de Inicio</label><input type="date" id="fechainicio" name="fechainicio">
-            </td>
-            <td>
-                <label for="fechafin">Fecha de Fin</label><input type="date" id="fechafin" name="fechafin">
-            </td>
-            <td>
-                <label for="tipopago">Tipo de Pago</label>
-                <select id="tipopago">
-                    <option value="LIQ">Efectivo</option>
-                    <option value="28">Tarjeta de Débito</option>
-                    <option value="CB">Tarjeta de Crédito</option>
-                </select>
-            </td>
-            <td>
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal">
-                    <option value="1">Guadalajara</option>
-                    <option value="2">Vallarta</option>
-                </select>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <input type="submit" id="enviar" class="button" value="Consultar">
-            </td>
+<form action="{$actionform}" method="POST">
+    <div>
+        <table class="border centpercent">
+            <input type="hidden" name="action" value="consulta">
+            <tr>
+                <td>
+                    <label for="fechainicio">Fecha de Inicio</label><input type="date" id="fechainicio"
+                        name="fechainicio">
+                </td>
+                <td>
+                    <label for="fechafin">Fecha de Fin</label><input type="date" id="fechafin" name="fechafin">
+                </td>
+                <td>
+                    <label for="tipopago">Tipo de Pago</label>
+                    <select id="tipopago" name="tipopago">
+                        <option value="LIQ">Efectivo</option>
+                        <option value="28">Tarjeta de Débito</option>
+                        <option value="CB">Tarjeta de Crédito</option>
+                    </select>
+                </td>
+                <td>
+                    <label for="sucursal">Sucursal</label>
+                    <select id="sucursal" name="sucursal">
+                        <option value="1">Guadalajara</option>
+                        <option value="2">Vallarta</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="submit" id="enviar" class="button" value="Consultar">
+                </td>
+            </tr>
+            <table>
+    </div>
+</form>
 
-        </tr>
-        <table>
-</div>
+{if isset($facturaspendientes)}
 
-<table id="tabla">
-    <thead>
-        <th>Factura</th>
-        <th>Fecha Emisión</th>
-        <th>Cliente</th>
-        <th>Monto Total</th>
-        <th>Moneda</th>
-        <th>Tipo de Pago</th>
-        <th>Acciones</th>
-    </thead>
+    <table id="tabla">
+        <thead>
+            <th>Factura</th>
+            <th>Fecha Emisión</th>
+            <th>Cliente</th>
+            <th>RFC</th>
+            <th>Monto Total</th>
+            <th>Moneda</th>
+            <th>Tipo de Pago</th>
+            <th>Acciones</th>
+        </thead>
 
-    <tbody>
+        <tbody>
+            {foreach from=$facturaspendientes key=$key item=$i}
+                <tr>
+                    <td><a href="/compta/facture/card.php?facid={$i['idfactura']}">{$i['ref']}</a></td>
+                    <td>{$i['fechaEmision']}</td>
+                    <td>{$i['cliente']}</td>
+                    <td>{$i['rfc']}</td>
+                    <td>$ {$i['totalFactura']}</td>
+                    <td>{$i['moneda']}</td>
+                    {if $i['tipoPago'] eq 0}
+                        <td>Efectivo</td>
+                    {/if}
 
-    </tbody>
+                    <td><input type="checkbox" idfactura="{$i['idfactura']}" id="idfactura" name="idfactura[]"></td>
+                </tr>
+            {/foreach}
+            <tr>
+                <td style="border-top:1px solid black; text-align:center" colspan="8">
+                    <button class="butAction" id="pagar">Marcar Facturas Pagadas</button>
+                </td>
+            </tr>
 
-</table>
+        </tbody>
+    </table>
+
+{else}
+    <span>Seleccione la consulta</span>
+
+{/if}
+
 {include file="footer.tpl"}
 <script>
     {literal}
-
-
         $(document).ready(function() {
+            $("#tabla").DataTable();
 
-            var table = $("#tabla").DataTable({
-
+            $("#pagar").click(function(e) {
+                 e.preventDefault();
+                console.log('enviando');
             });
-            $("#enviar").click(function(e) {
-
-
-
-                fechainicio = $("#fechainicio").val();
-                fechafin = $("#fechafin").val();
-                tipopago = $("#tipopago").val();
-                sucursal = $("#sucursal").val();
-
-                
-          table.destroy();
-
-                datos = new FormData();
-                datos.append('action', 'obtenerFacturas');
-                datos.append('fechainicio', fechainicio);
-                datos.append('fechafin', fechafin);
-                datos.append('tipopago', tipopago);
-                datos.append('sucursal', sucursal);
-
-                //console.log(datos);
-
-                $.ajax({
-                    url: "/custom/vivescloud/ajax/pagosMasivos.php",
-                    method: 'POST',
-                    data: datos,
-                    cache: false,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success: function(data) {
-                        console.log(data);
-                       
-                        table = $("#tabla").DataTable({});
-                        $.each(data, function(key,value){
-                           
-                           table.row.add([
-                                value.ref,
-                                value.fechaEmision,
-                                value.cliente,
-                                value.totalFactura,
-                                tipopago,
-                                'Pendiente de Pago',
-                                '<input type="checkbox">',
-                           ]).draw(false);
-                        });
-                        
-                    }
-                });
-                /*table = $("#tabla").DataTable({
-
-                ajax:{
-                   url: "/custom/vivescloud/ajax/pagosMasivos.php",
-                   method: 'GET',
-                   data: datos,
-                   cache: false,
-                   contentType: false,
-                   processData: false,
-                   dataType: 'json',
-                    success: function(data) {
-                        console.log(data);
-                    },
-
-
-                }
-            });*/
-            })
-
-
-            /*data = new FormData();
-        data.append();*/
-            /* $.ajax({
-             url: window.location
-             type: "POST",
-             dataType: "JSON",
-
-         });*/
-
         });
+
+
     {/literal}
 </script>

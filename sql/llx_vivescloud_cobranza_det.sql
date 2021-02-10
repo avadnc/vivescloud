@@ -14,19 +14,16 @@
 -- along with this program.  If not, see https://www.gnu.org/licenses/.
 
 
-CREATE TABLE llx_vivescloud_cobranza(
+CREATE TABLE llx_vivescloud_cobranza_det(
 	-- BEGIN MODULEBUILDER FIELDS
 	rowid integer AUTO_INCREMENT PRIMARY KEY NOT NULL, 
-	ref varchar(128) DEFAULT '(PROV)' NOT NULL, 
-	entity integer DEFAULT 1 NOT NULL, 
-	note_public text, 
-	note_private text, 
+	fk_object integer NOT NULL, 
+	fk_payment integer NOT NULL,
+	entity integer DEFAULT 1 NOT NULL,
 	date_creation datetime NOT NULL, 
 	tms timestamp, 
 	fk_user_creat integer NOT NULL, 
-	fk_user_modif integer, 
-	import_key varchar(14), 
-	model_pdf varchar(255), 
+	fk_user_modif integer,
 	status smallint NOT NULL
 	-- END MODULEBUILDER FIELDS
 ) ENGINE=innodb;

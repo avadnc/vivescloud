@@ -239,7 +239,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
                     $linea->qty = $object->qty;
                     $linea->price = $producto->cost_price;
-                    $linea->subprice = $producto->cost_price * $object->qty;
+                    $linea->subprice = $producto->cost_price;
                     $linea->total_ht = $producto->cost_price * $object->qty;
                     $linea->total_tva = (($producto->cost_price * $object->qty) * 16) / 100;
                     $linea->total_ttc = ($producto->cost_price * $object->qty) * 1.16;
@@ -299,6 +299,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
             // Bills
             case 'BILL_CREATE':
+             
                 $cliente = new Societe($this->db);
                 $cliente->fetch($object->socid);
 
@@ -394,8 +395,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                             $producto->fetch($object->lines[$i]->fk_product);
                             if ($producto->array_options["options_batch"] == 1) {
 
-                                echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");
-</script>';
+                                echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");</script>';
                                 exit;
 
                             }
@@ -405,8 +405,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                     }
 
                 }
-                $almacen = GETPOST('idwarehouse', 'int');
-
+               
                 if ($object->type == 2) {
                     $lineas = count($object->lines);
                     for ($i = 0; $i < $lineas; $i++) {
@@ -460,6 +459,23 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                         }
 
                     }
+
+                }
+
+                if($object->type == 1){
+
+                    
+                    $sql = "SELECT uuid from ".MAIN_DB_PREFIX."cfdimx where fk_facture = ".$object->fk_facture_source;
+                    $resql = $this->db->query($sql);
+                    $obj = $this->db->fetch_object($resql);
+
+                    $factura = new Facture($this->db);
+                    $factura->fetch($object->id);
+                    $factura->array_options['options_cfdidocuuid'] = $obj->uuid;
+                    $this->db->begin();
+                    $factura->update($user);
+                    $this->db->commit();
+
 
                 }
                 $tipocambio = [];

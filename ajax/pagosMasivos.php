@@ -97,57 +97,7 @@ if (isset($user->socid) && $user->socid > 0) {
 
 $tipoPago = dol_getIdFromCode($db, $pago, 'c_paiement', 'code', 'id', 1);
 
-function getFacturasPendientes($tipoPago, $fechaInicio, $fechaFin, $entity)
-{
 
-    global $db;
-    $campos = ['rowid', 'ref', 'date_valid', 'fk_soc', 'fk_mode_reglement', 'multicurrency_code','multicurrency_total_ttc'];
-    $select = new PO\QueryBuilder\Statements\Select();
-    $select->select($campos);
-    $select->from(MAIN_DB_PREFIX . 'facture');
-    $select->where('paye', 0, '=');
-    $select->where('type', 0, '=');
-    $select->where('fk_mode_reglement', $tipoPago, '=');
-    $select->where('date_valid BETWEEN "' . $fechaInicio . '" AND "' . $fechaFin . '"');
-
-    $select->where('entity', $entity, '=');
-    $result = $db->query($select->toSql());
-    $num = $db->num_rows($result);
-
-    if ($num > 0) {
-
-        $i = 0;
-        $facturas = [];
-        while ($i < $num) {
-
-            $obj = $db->fetch_object($result);
-
-            $cliente = new Societe($db);
-            $cliente->fetch($obj->fk_soc);
-
-            $datosFacturas = [
-                'idfactura' => $obj->rowid,
-                'ref' => $obj->ref,
-                'fechaEmision' => $obj->date_valid,
-                'cliente' => $cliente->name,
-                'rfc' => $cliente->idprof1,
-                'tipoPago' => $obj->fk_mode_reglement,
-                'totalFactura' => $obj->multicurrency_total_ttc,
-            ];
-
-            array_push($facturas, $datosFacturas);
-
-            $i++;
-
-        }
-
-        return $facturas;
-
-    } else {
-        return null;
-    }
-
-}
 
 // echo '<pre>';
 // var_dump(getFacturasPendientes($pagoEfectivo,'2021-01-07','2021-01-07',1));

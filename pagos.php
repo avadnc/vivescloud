@@ -77,15 +77,84 @@ dol_include_once('/vivescloud/vendor/autoload.php');
 // Load translation files required by the page
 $langs->loadLangs(array("vivescloud@vivescloud"));
 
+//obtener variables
+$fechainicio = GETPOST('fechainicio');
+$fechafin = GETPOST('fechafin');
+$tipopago = GETPOST('tipopago');
+$sucursal = GETPOST('sucursal');
+$action = GETPOST('action', 'alpha');
+$idfactura =  GETPOST('idfactura');
+
+function getFacturasPendientes($tipoPago, $fechaInicio, $fechaFin, $entity)
+{
+    global $db;
+    $campos = ['rowid', 'ref', 'date_valid', 'fk_soc', 'fk_mode_reglement', 'multicurrency_code', 'multicurrency_total_ttc'];
+    $select = new PO\QueryBuilder\Statements\Select();
+    $select->select($campos);
+    $select->from(MAIN_DB_PREFIX . 'facture');
+    $select->where('paye', 0, '=');
+    $select->where('type', 0, '=');
+    $select->where('fk_mode_reglement', $tipoPago, '=');
+    $select->where('date_valid BETWEEN "' . $fechaInicio . '" AND "' . $fechaFin . '"');
+
+    $select->where('entity', $entity, '=');
+    $result = $db->query($select->toSql());
+    $num = $db->num_rows($result);
+
+    if ($num > 0) {
+
+        $i = 0;
+        $facturas = [];
+        while ($i < $num) {
+
+            $obj = $db->fetch_object($result);
+
+            $cliente = new Societe($db);
+            $cliente->fetch($obj->fk_soc);
+
+            $datosFacturas = [
+                'idfactura' => $obj->rowid,
+                'ref' => $obj->ref,
+                'fechaEmision' => $obj->date_valid,
+                'cliente' => $cliente->name,
+                'rfc' => $cliente->idprof1,
+                'tipoPago' => $obj->fk_mode_reglement,
+                'moneda' => $obj->multicurrency_code,
+                'totalFactura' => round($obj->multicurrency_total_ttc, 2),
+            ];
+
+            array_push($facturas, $datosFacturas);
+
+            $i++;
+
+        }
+
+        return $facturas;
+
+    } else {
+        return null;
+    }
+
+}
+echo '<pre>';
+var_dump($idfactura);
+echo '</pre>';
 
 //Manejo Smarty
+
 $smarty = new Smartie();
 $smarty->assign('dol_url_root', DOL_URL_ROOT);
+$smarty->assign('actionform', $_SERVER['PHP_SELF']);
 
+if ($action == 'consulta') {
+    if (isset($tipopago) && isset($fechainicio) && isset($fechafin) && isset($sucursal)) {
 
+        $smarty->assign('facturaspendientes', getFacturasPendientes($tipopago, $fechainicio, $fechafin, $sucursal));
 
-/* * View
- */
+    }
+}
+
+/* * View */
 
 $form = new Form($db);
 $formfile = new FormFile($db);
