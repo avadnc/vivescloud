@@ -196,7 +196,7 @@ class ConsultaStockProductos
         return $stock;
     }
 
-    public function cargarLoteProducto($producto)
+    public function cargarLoteProducto($producto, $almacen = null)
     {
         // echo $producto;
         // exit;
@@ -204,7 +204,6 @@ class ConsultaStockProductos
 
         $product = new Product($db);
         $product->fetch($producto);
-        
 
         if ($product->array_options["options_batch"] == 1) {
             $campos = [MAIN_DB_PREFIX . 'product_batch.rowid', 'batch', 'qty'];
@@ -213,7 +212,13 @@ class ConsultaStockProductos
             $select->from(MAIN_DB_PREFIX . 'product_batch');
             $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock  = ' . MAIN_DB_PREFIX . 'product_stock.rowid');
             $select->where(MAIN_DB_PREFIX . 'product_stock.fk_product', $product->id, '=');
-            $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $user->fk_warehouse, '=');
+            if ($almacen == null) {
+                $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $user->fk_warehouse, '=');
+            } else {
+
+                $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
+                
+            }
             $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
 
             $resql = $db->query($select->toSql());

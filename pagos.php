@@ -18,7 +18,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
+/*
  *    \file       vivescloud/vivescloudindex.php
  *    \ingroup    vivescloud
  *    \brief      Home page of vivescloud top menu
@@ -69,6 +69,8 @@ require_once DOL_DOCUMENT_ROOT . '/compta/facture/class/facture-rec.class.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/invoice.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT . '/compta/bank/class/account.class.php';
+require_once DOL_DOCUMENT_ROOT . '/compta/paiement/class/paiement.class.php';
 
 //Llamando al Autoload
 dol_include_once('/vivescloud/lib/Smartie.php');
@@ -83,21 +85,37 @@ $fechafin = GETPOST('fechafin');
 $tipopago = GETPOST('tipopago');
 $sucursal = GETPOST('sucursal');
 $action = GETPOST('action', 'alpha');
-$idfactura =  GETPOST('idfactura');
+$idfactura = GETPOST('idfactura');
+$moneda = GETPOST('moneda');
 
-function getFacturasPendientes($tipoPago, $fechaInicio, $fechaFin, $entity)
+function getFacturasPendientes($tipoPago, $moneda, $fechaInicio, $fechaFin, $entity)
 {
     global $db;
+
     $campos = ['rowid', 'ref', 'date_valid', 'fk_soc', 'fk_mode_reglement', 'multicurrency_code', 'multicurrency_total_ttc'];
     $select = new PO\QueryBuilder\Statements\Select();
     $select->select($campos);
     $select->from(MAIN_DB_PREFIX . 'facture');
+    $select->where('multicurrency_code', $moneda, '=');
     $select->where('paye', 0, '=');
     $select->where('type', 0, '=');
-    $select->where('fk_mode_reglement', $tipoPago, '=');
+    if ($tipoPago == 'LIQ') {
+
+        $select->where('fk_mode_reglement', dol_getIdFromCode($db, 'LIQ', 'c_paiement', 'code', 'id', 1), '=');
+    }
+    if ($tipoPago == 'CB') {
+
+        $select->where('fk_mode_reglement', dol_getIdFromCode($db, 'CB', 'c_paiement', 'code', 'id', 1), '=');
+    }
+    if ($tipoPago == '28') {
+        $select->where('fk_mode_reglement', dol_getIdFromCode($db, '28', 'c_paiement', 'code', 'id', 1), '=');
+
+    }
+
     $select->where('date_valid BETWEEN "' . $fechaInicio . '" AND "' . $fechaFin . '"');
 
     $select->where('entity', $entity, '=');
+
     $result = $db->query($select->toSql());
     $num = $db->num_rows($result);
 
@@ -118,8 +136,9 @@ function getFacturasPendientes($tipoPago, $fechaInicio, $fechaFin, $entity)
                 'fechaEmision' => $obj->date_valid,
                 'cliente' => $cliente->name,
                 'rfc' => $cliente->idprof1,
-                'tipoPago' => $obj->fk_mode_reglement,
+                'tipoPago' => $tipoPago,
                 'moneda' => $obj->multicurrency_code,
+                'sucursal' => $entity,
                 'totalFactura' => round($obj->multicurrency_total_ttc, 2),
             ];
 
@@ -136,24 +155,150 @@ function getFacturasPendientes($tipoPago, $fechaInicio, $fechaFin, $entity)
     }
 
 }
-echo '<pre>';
-var_dump($idfactura);
-echo '</pre>';
+
+function getBancos()
+{
+    global $db;
+
+    $campos = ['rowid', 'label'];
+    $select = new PO\QueryBuilder\Statements\Select();
+    $select->select($campos);
+    $select->from(MAIN_DB_PREFIX . 'bank_account');
+
+    $resql = $db->query($select->toSql());
+    $num = $db->num_rows($resql);
+
+    if ($num > 0) {
+        $i = 0;
+        $bancos = [];
+        while ($i < $num) {
+
+            $obj = $db->fetch_object($resql);
+
+            array_push($bancos, $obj);
+
+            $i++;
+        }
+        return $bancos;
+    }
+
+}
+
+function insertar($tabla, $datos)
+{
+    global $db;
+
+    $insert = new PO\QueryBuilder\Statements\Insert();
+
+    $insert->into($tabla)->values($datos);
+
+    $result = $db->query($insert->toSql());
+
+    if($result > 0){
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+function aplicaPago($idfactura, $banco =null, $tipopago=null)
+{
+    global $db, $user, $conf;
+
+    $lineas = count($idfactura) - 1;
+
+    $datos = [
+        'ref' => dol_now(),
+        'datec' => dol_now(),
+        'datev' =>dol_now(),
+        'payment_type' => $tipopago,
+        'fk_bank_account' => $banco,
+        'fk_user' => $user->id,
+        'entity' => $conf->entity
+
+    ];
+    
+    echo '<pre>';
+    var_dump($datos);
+    exit;
+
+    for ($i = 0; $i <= $lineas; $i++) {
+        $datos = explode('-', $idfactura[$i]);
+
+        $factura = $datos[0];
+        $pago = $datos[1];
+        $entity = $datos[2];
+
+        $amounts = [];
+        $multicurrency_amounts = [];
+
+        $fact = new Facture($db);
+        $fact->fetch($factura);
+
+        if ($fact->multicurrency_code == "MXN") {
+            $amounts = [
+                $fact->id => $fact->total_ttc,
+            ];
+        }
+        if ($fact->multicurrency_code == "USD") {
+            $amounts = [
+                $fact->id => $fact->multicurrency_total_ttc,
+            ];
+        }
+
+        // Creation of payment line
+        $paiement = new Paiement($db);
+        $paiement->datepaye = $fact->date;
+        $paiement->amounts = $amounts; // Array with all payments dispatching with invoice id
+        $paiement->multicurrency_amounts = $multicurrency_amounts; // Array with all payments dispatching
+        $paiement->paiementid = dol_getIdFromCode($db, $fact->mode_reglement_code, 'c_paiement', 'code', 'id', 1);
+        $paiement->num_payment = 0;
+        $paiement->note_private = null;
+        $paiement->num_paiement = $paiement->num_payment; // For bacward compatibility
+        $paiement->note = $paiement->note_private; // For bacward compatibility
+
+        $db->begin();
+        //Crear ID pago
+        $paiement_id = $paiement->create($user, 1, $thirdparty);
+
+        //crear registro en la cuenta bancaria
+        $result = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), GETPOST('chqemetteur'), GETPOST('chqbank'));
+
+        $db->commit();
+
+        echo '<pre>';
+        var_dump($fact);
+        echo '</pre>';
+
+        echo '<br>';
+    }
+
+    exit;
+
+}
 
 //Manejo Smarty
 
 $smarty = new Smartie();
 $smarty->assign('dol_url_root', DOL_URL_ROOT);
 $smarty->assign('actionform', $_SERVER['PHP_SELF']);
+$bankline = new AccountLine($db);
 
 if ($action == 'consulta') {
     if (isset($tipopago) && isset($fechainicio) && isset($fechafin) && isset($sucursal)) {
 
-        $smarty->assign('facturaspendientes', getFacturasPendientes($tipopago, $fechainicio, $fechafin, $sucursal));
+        $smarty->assign('facturaspendientes', getFacturasPendientes($tipopago, $moneda, $fechainicio, $fechafin, $sucursal));
+        $smarty->assign('bancos', getBancos());
 
     }
 }
 
+if ($action == 'pagar') {
+
+    aplicaPago($idfactura);
+
+}
 /* * View */
 
 $form = new Form($db);

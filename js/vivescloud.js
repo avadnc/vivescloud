@@ -12,7 +12,6 @@ $(document).ready(function () {
   }
   if (window.location.href.indexOf("/fourn/commande/dispatch.php?id=") > -1) {
     $("input[name='dispatch']").click(function (e) {
-      
       if ($("#pedimento").val() == "") {
         Swal.fire({
           title: "Alerta",
@@ -34,6 +33,110 @@ $(document).ready(function () {
     }
   }
 
+  //Modificación para StocTransfers de Sergi Rodrigues
+  if (window.location.href.indexOf("/custom/stocktransfers/transfer_edit.php") > -1) {
+    // alert("estoy en transferencias masivas");
+    $("input[name='batch']").hide();
+
+    var almacen; 
+  
+      almacen = $("#fk_depot1").val();
+      console.log(almacen);
+    
+    
+    // añadir pedimento
+
+    if ($("#search_pid").length) {
+      $("#search_pid").focusout(function () {
+        if ($("#search_pid").val().length > 0) {
+          producto = $("#pid").val();
+          $.ajax({
+            url:
+              "/custom/vivescloud/ajax/stockProducts.php?productoLote=" +
+              producto + "&almacen="+ almacen
+              ,
+            type: "GET",
+            dataType: "json",
+            async: false,
+            success: function (data) {
+              if (data == null) {
+                return;
+              } else {
+                $("input[name='batch']").before(
+                  "<select id='pedimento'><option>Seleccione Pedimento</option></select>"
+                );
+
+                console.log(data.data);
+                if (data.msg == "success") {
+                  $.each(data.data, function (key, value) {
+                    $("#pedimento").append(
+                      '<option stock="' +
+                        value.qty +
+                        '" value="' +
+                        value.batch +
+                        '">' +
+                        value.batch +
+                        " - <strong>Stock:</strong> " +
+                        value.qty +
+                        "</option>"
+                    );
+                  });
+                }
+                var opt = {
+                  autoOpen: false,
+                  modal: true,
+                  width: 550,
+                  height: 200,
+                  title: "Seleccionar Pedimento",
+                  buttons: {
+                    Confirm: function () {
+                      qty = $("option:selected", this).attr("stock");
+                      pedimento = $("#pedimento").val();
+                      $("input[name='batch']").val(pedimento);
+                      // console.log(pedimento);
+                      // return;
+                      parseInt(qty);
+
+                      if (qty !== undefined) {
+                        // $("#options_pedimento").prop("disabled", true);
+                        $("input[name='batch']").before(
+                          "<p>Pedimento: " +
+                            pedimento +
+                            " Stock: " +
+                            qty +
+                            "</p>"
+                        );
+                        theDialog.dialog("close");
+                      }
+                    },
+                  },
+                };
+                var theDialog = $("#pedimento").dialog(opt);
+                theDialog.dialog("open");
+              }
+            },
+          });
+        }
+      });
+    }
+     $("input[name='n']").focusout(function () {
+       cantidad = $(this).val();
+       // parseInt(cantidad);
+       // console.log(cantidad);
+       // console.log(qty);
+       // console.log(cantidad > qty);
+       resultado = compara(parseInt(cantidad), parseInt(qty));
+       if (resultado == true) {
+         Swal.fire({
+           icon: "error",
+           title: "Oops...",
+           text: "Stock Insuficiente para ese Pedimento",
+         });
+       }
+     });
+  }
+    
+   
   var moneda = $.ajax({
     url: "/custom/vivescloud/ajax/actualizaMoneda.php?cargarhistorico=dolar",
     type: "GET",
@@ -241,7 +344,7 @@ $(document).ready(function () {
             }
           },
         });
-      } 
+      }
     });
   }
 
@@ -265,8 +368,7 @@ $(document).ready(function () {
     // }
   });
 
-  $("#multicurrency_price_ht").focusout(function(){
-    
+  $("#multicurrency_price_ht").focusout(function () {
     precio = $(this).val();
     precio_moneda = precio * moneda.label;
     // console.log(precio_moneda);

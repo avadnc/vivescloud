@@ -24,22 +24,61 @@ class MovimientoStocksProductos
         $select->from(MAIN_DB_PREFIX . 'product_batch AS pb');
         $select->innerJoin(MAIN_DB_PREFIX . 'product_stock as ps', 'pb.fk_product_stock = ps.rowid');
         $select->innerJoin(MAIN_DB_PREFIX . 'product as p', 'ps.fk_product = p.rowid');
-        $select->where('pb.batch', $lote, '=');
-        $select->where('ps.fk_entrepot', $almacen, '=');
-        $select->where('p.rowid', $producto, '=');
+        if (!isset($lote)) {
 
-        $result = $db->query($select->toSql());
-        $num = $db->num_rows($result);
+            $select->where('ps.fk_entrepot', $almacen, '=');
+            $select->where('p.rowid', $producto, '=');
 
-        //existe pedimento
-        if ($num > 0) {
+            $result = $db->query($select->toSql());
+            $num = $db->num_rows($result);
 
-            return $obj = $db->fetch_object($result);
+            //devolver la suma de los pedimentos
+
+            $totalStock = 0;
+            $totalPedimento = 0;
+
+            if ($num > 0) {
+                $i = 0;
+
+                while ($i < $num) {
+
+                    $obj = $db->fetch_object($result);
+
+                    $totalPedimento += $obj->qty;
+                    $totalStock = $obj->stock;
+                    $i++;
+
+                }
+
+                return [
+                    'totalstock' => intval($totalStock),
+                    'totalpediment' => $totalPedimento,
+                ];
+
+            } else {
+
+                return null;
+
+            }
 
         } else {
+            $select->where('pb.batch', $lote, '=');
+            $select->where('ps.fk_entrepot', $almacen, '=');
+            $select->where('p.rowid', $producto, '=');
 
-            return null;
+            $result = $db->query($select->toSql());
+            $num = $db->num_rows($result);
 
+            //existe pedimento
+            if ($num > 0) {
+
+                return $obj = $db->fetch_object($result);
+
+            } else {
+
+                return null;
+
+            }
         }
 
     }
@@ -98,6 +137,7 @@ class MovimientoStocksProductos
         $insert->into(MAIN_DB_PREFIX . $tabla)->values($datos);
 
         $result = $db->query($insert->toSql());
+
         if ($result > 0) {
 
             return true;
@@ -112,7 +152,8 @@ class MovimientoStocksProductos
 
     public function corregirStock($accion, $producto, $lote, $almacen, $cantidad)
     {
-        global $db;
+
+        global $db, $user;
 
         if (empty($producto) || empty($almacen) || empty($cantidad)) {
 
@@ -135,30 +176,44 @@ class MovimientoStocksProductos
                 if ($consulta != null) {
 
                     if ($accion == "sumar") {
-                       
 
-                        $datosActualiza = [
-                            'reel' => $cantidad + $consulta->stock,
-                        ];
-                       
-                        $actualizar = $this->actualizarTabla('product_stock', $consulta->idstock, $datosActualiza);
-                        $datosActualiza = null;
+                        $product = new Product($db);
+                        $product->fetch($producto);
 
-                        if ($actualizar == true) {
+                        $now = dol_now();
+                        // $result = $product->correct_stock(
+                        //     $user,
+                        //     $almacen,
+                        //     $cantidad,
+                        //     0,
+                        //     'Correción de sotck del producto ' . $product->ref,
+                        //     0,
+                        //     $now . ' - ' . $product->ref,
+                        //     $origin_element = '',
+                        //     $origin_id = null
 
-                            $datosActualiza = [
-                                'qty' => $cantidad + $consulta->qty,
+                        // ); // We do not change value of stock for a correction
+                        $result = $product->correct_stock_batch(
+                            $user,
+                            $almacen,
+                            $cantidad,
+                            0,
+                            'Correción de sotck del producto ' . $product->ref,
+                            0,
+                            null,
+                            null,
+                            $lote,
+                            $now . ' - ' . $product->ref,
+                            $origin_element = '',
+                            $origin_id = null
+                        ); // We do not change value of stock for a correction
+
+                        if ($result > 0) {
+
+                            return [
+                                'code' => 'Ok',
+                                'msg' => 'Datos Actualizados Correctamente',
                             ];
-
-                            $actualizar = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
-
-                            if ($actualizar == true) {
-
-                                return [
-                                    'code' => 'Ok',
-                                    'msg' => 'Datos Actualizados Correctamente',
-                                ];
-                            }
                         }
                     }
 
@@ -199,10 +254,109 @@ class MovimientoStocksProductos
 
                     } // else {} // añadir el pedimento a mano
 
-                }
+                } else {
 
+                    $stock = $this->consultarStock($producto, $almacen);
+                    $pedimentoQty = $this->consultarPedimento(null, $almacen, $producto);
+                    $stocktotal = 0;
+                    $stocktotalpedimento = 0;
+                    if ($accion == 'sumar') {
+
+                        $product = new Product($db);
+                        $product->fetch($producto);
+
+                        $now = dol_now();
+                        $result = $product->correct_stock(
+                            $user,
+                            $almacen,
+                            $cantidad,
+                            0,
+                            'Correción de sotck del producto ' . $product->ref,
+                            0,
+                            $now . ' - ' . $product->ref,
+                            $origin_element = '',
+                            $origin_id = null
+
+                        ); // We do not change value of stock for a correction
+
+                        if ($result > 0) {
+
+                            $stockactual = $this->consultarStock($product->id, $almacen);
+                            $datosInsertar = [
+                                'fk_product_stock' => $stockactual->rowid,
+                                'batch' => $lote,
+                                'qty' => $cantidad,
+                            ];
+                            $resp = $this->insertarDatos('product_batch', $datosInsertar);
+                            if ($resp == true) {
+
+                                return [
+                                    'code' => 'Ok',
+                                    'msg' => 'Datos Actualizados Correctamente',
+                                ];
+
+                            } else {
+
+                                return [
+                                    'code' => 'error',
+                                    'msg' => 'No se puede añadir corrija stock',
+                                ];
+
+                            }
+
+                        }
+
+                    }
+                    // else {
+
+                    //     $product = new Product($db);
+                    //     $product->fetch($producto);
+
+                    //     $now = dol_now();
+                    //     $result = $product->correct_stock(
+                    //         $user,
+                    //         $almacen,
+                    //         $cantidad,
+                    //         0,
+                    //         'Correción de sotck del producto ' . $product->ref,
+                    //         0,
+                    //         $now . ' - ' . $product->ref,
+                    //         $origin_element = '',
+                    //         $origin_id = null
+
+                    //     ); // We do not change value of stock for a correction
+
+                    //     if ($result > 0) {
+
+                    //         $stockactual = $this->consultarStock($product->id, $almacen);
+                    //         $datosInsertar = [
+                    //             'fk_product_stock' => $stockactual->rowid,
+                    //             'batch' => $lote,
+                    //             'qty' => $cantidad,
+                    //         ];
+                    //         $resp = $this->insertarDatos('product_batch', $datosInsertar);
+                    //         if ($resp == true) {
+
+                    //             return [
+                    //                 'code' => 'Ok',
+                    //                 'msg' => 'Datos Actualizados Correctamente',
+                    //             ];
+
+                    //         } else {
+
+                    //             return [
+                    //                 'code' => 'error',
+                    //                 'msg' => 'No se puede añadir corrija stock',
+                    //             ];
+
+                    //         }
+
+                    //     }
+                    // }
+                }
             }
         }
+
     }
 
     public function transferirStock($origen, $destino, $lote, $producto, $cantidad)
@@ -365,9 +519,8 @@ class MovimientoStocksProductos
 
                             $actualizaOrigen = $this->actualizarTabla('product_stock', $productoStockOrigen->rowid, $datosActualiza);
 
-                           if ($altaStocks == true && $actualizaOrigen == true) {
+                            if ($altaStocks == true && $actualizaOrigen == true) {
 
-                           
                                 $productoDestino = $this->consultarStock($producto, $destino);
 
                                 $altaDatos = [
@@ -375,7 +528,6 @@ class MovimientoStocksProductos
                                     'qty' => $cantidad,
                                     'batch' => $lote,
                                 ];
-                                
 
                                 $altaLote = $this->insertarDatos('product_batch', $altaDatos);
 
@@ -398,7 +550,7 @@ class MovimientoStocksProductos
                                     ];
 
                                 }
-                           }
+                            }
 
                         }
 

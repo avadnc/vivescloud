@@ -43,6 +43,7 @@ require_once DOL_DOCUMENT_ROOT . '/product/stock/class/mouvementstock.class.php'
 require_once DOL_DOCUMENT_ROOT . '/product/class/productbatch.class.php';
 
 dol_include_once('/vivescloud/vendor/autoload.php');
+dol_include_once('/vivescloud/class/MovimientoStocksProductos.class.php');
 
 /**
  *  Class of triggers for Vivescloud module
@@ -135,7 +136,27 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
             // Companies
             //case 'COMPANY_CREATE':
+
             // case 'COMPANY_MODIFY':
+
+            //     //añadir comercial
+            //     if ($object->commercial_id != null) {
+            //         $tercero = new Societe($this->db);
+            //         $tercero->fetch($object->id);
+            //         $this->db->begin();
+            //         $tercero->add_commercial($user, $object->commercial_id);
+            //         $this->db->commit();
+            //     }
+
+            //     //borrar commercial
+            //     if ($object->del_commercial != null) {
+            //         $tercero = new Societe($this->db);
+            //         $tercero->fetch($object->id);
+            //         $this->db->begin();
+            //         $tercero->del_commercial($user, $object->del_commercial);
+            //         $this->db->commit();
+            //     }
+            // break;
             //case 'COMPANY_DELETE':
 
             // Contacts
@@ -156,8 +177,90 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
             //case 'PRODUCT_DEL_MULTILANGS':
 
             //Stock mouvement
-            //case 'STOCK_MOVEMENT':
+            case 'STOCK_MOVEMENT':
 
+                dol_include_once('/stocktransfers/lib/stoctransfers.lib');
+
+                /**
+                 *  @var $status    0 = draft, 1 = send, 2 = recibed
+                 *                  1 - decrementa el stock de origen
+                 *                  2 - incrementa en el stock de destino
+                 */
+
+                $transfer = new StockTransfer($this->db);
+
+                $action = GETPOST('action');
+                $status = GETPOST('status', 'int');
+                $id = GETPOST('rowid', 'int');
+                $fk_warehouse_origin = GETPOST('fk_depot1', 'int');
+                $fk_warehouse_dest = GETPOST('fk_depot2', 'int');
+
+                if ($action == 'save_card') {
+                    if ($status == 1) {
+                        $transfer->fetch($id);
+                        $movimientos = unserialize($transfer->s_products);
+
+                        foreach ($movimientos as $movimiento) {
+
+                            if ($movimiento['b'] != null) {
+
+                                $consulta = $this->consultarPedimento($movimiento['b'], $fk_warehouse_origin, $movimiento['id']);
+                                $datosActualiza = [
+                                    'qty' => $consulta->qty - $movimiento['n'],
+                                ];
+
+                                $actualizar = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
+
+                                if ($actualizar != true) {
+                                    setEventMessage('No se pudo actualizar', 'error');
+                                }
+
+                            }
+                        }
+                    }
+                    if ($status == 2) {
+                        $transfer->fetch($id);
+                        $movimientos = unserialize($transfer->s_products);
+
+                        foreach ($movimientos as $movimiento) {
+
+                            if ($movimiento['b'] != null) {
+
+                                $consulta = $this->consultarPedimento($movimiento['b'], $fk_warehouse_dest, $movimiento['id']);
+                                $datosActualiza = [
+                                    'qty' => $consulta->qty + $movimiento['n'],
+                                ];
+
+                                $actualizar = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
+
+                                if ($actualizar != true) {
+                                    setEventMessage('No se pudo actualizar', 'error');
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $movimiento = GETPOST('movimiento');
+                $lote = GETPOST('lote');
+                $cantidad = GETPOST('cantidad');
+
+                $consulta = $this->consultarPedimento($lote, $object->warehouse_id, $object->product_id);
+
+                if ($movimiento == 'sumar') {
+                    $datosActualiza = [
+                        'qty' => $cantidad + $consulta->qty,
+                    ];
+
+                    $actualizar = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
+
+                    if ($actualizar != true) {
+                        setEventMessage('No se pudo actualizar', 'error');
+                    }
+
+                }
+
+                break;
             //MYECMDIR
             //case 'MYECMDIR_CREATE':
             //case 'MYECMDIR_MODIFY':
@@ -209,7 +312,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
             // case 'ORDER_SUPPLIER_DISPATCH':
             //case 'LINEORDER_SUPPLIER_DISPATCH':
             case 'LINEORDER_SUPPLIER_CREATE':
-               
+
                 $producto = new Product($this->db);
                 $producto->fetch($object->fk_product);
                 $linea = new CommandeFournisseurLigne($this->db);
@@ -223,13 +326,11 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
                     $linea->multicurrency_subprice = $producto->cost_price * $object->multicurrency_tx;
                     $linea->multicurrency_total_ht = ($producto->cost_price * $object->qty) * $object->multicurrency_tx;
-                    $linea->multicurrency_total_tva = ((($producto->cost_price * $object->qty)*16)/100 ) * $object->multicurrency_tx;
-                    $linea->multicurrency_total_ttc =(($producto->cost_price * $object->qty)*1.16) * $object->multicurrency_tx;
+                    $linea->multicurrency_total_tva = ((($producto->cost_price * $object->qty) * 16) / 100) * $object->multicurrency_tx;
+                    $linea->multicurrency_total_ttc = (($producto->cost_price * $object->qty) * 1.16) * $object->multicurrency_tx;
                     $linea->total_ht = $producto->cost_price * $object->qty;
-                    $linea->total_tva = (($producto->cost_price * $object->qty)*16)/100;
-                    $linea->total_ttc = ($producto->cost_price * $object->qty)*1.16;
-        
-  
+                    $linea->total_tva = (($producto->cost_price * $object->qty) * 16) / 100;
+                    $linea->total_ttc = ($producto->cost_price * $object->qty) * 1.16;
 
                     $this->db->begin();
                     $linea->update($user);
@@ -243,7 +344,6 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                     $linea->total_ht = $producto->cost_price * $object->qty;
                     $linea->total_tva = (($producto->cost_price * $object->qty) * 16) / 100;
                     $linea->total_ttc = ($producto->cost_price * $object->qty) * 1.16;
-
 
                     $this->db->begin();
                     $linea->update($user);
@@ -299,7 +399,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
             // Bills
             case 'BILL_CREATE':
-             
+
                 $cliente = new Societe($this->db);
                 $cliente->fetch($object->socid);
 
@@ -326,10 +426,10 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 }
 
                 break;
+
             case 'BILL_MODIFY':
                 if (!$user->rights->vivescloud->modificarfactura->write) {
-                    echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");
-</script>';
+                    echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");</script>';
                     exit;
 
                 }
@@ -405,7 +505,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                     }
 
                 }
-               
+
                 if ($object->type == 2) {
                     $lineas = count($object->lines);
                     for ($i = 0; $i < $lineas; $i++) {
@@ -462,10 +562,9 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
                 }
 
-                if($object->type == 1){
+                if ($object->type == 1) {
 
-                    
-                    $sql = "SELECT uuid from ".MAIN_DB_PREFIX."cfdimx where fk_facture = ".$object->fk_facture_source;
+                    $sql = "SELECT uuid from " . MAIN_DB_PREFIX . "cfdimx where fk_facture = " . $object->fk_facture_source;
                     $resql = $this->db->query($sql);
                     $obj = $this->db->fetch_object($resql);
 
@@ -476,10 +575,17 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                     $factura->update($user);
                     $this->db->commit();
 
-
                 }
                 $tipocambio = [];
                 $consulta = PO\QueryBuilder::factorySelect();
+                $factura = new Facture($this->db);
+                $factura->fetch($object->id);
+                $soc = new Societe($this->db);
+                $soc->fetch($factura->socid);
+
+                // echo '<pre>';
+                // var_dump($soc);
+                // exit;
 
                 if ($object->multicurrency_code == "USD") {
                     $campos = array('label');
@@ -493,17 +599,15 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                     $resql = $this->db->query($consulta->toSql());
                     $tipocambio = $this->db->fetch_object($resql);
                     // echo $consulta->toSql();
-                    $factura = new Facture($this->db);
-                    $factura->fetch($object->id);
 
                     if (!empty($tipocambio)) {
                         $factura->array_options["options_tipodecambiocfdi"] = $tipocambio->label;
 
                     }
 
-                    $factura->update($user, 1);
-
                 }
+
+                $factura->update($user, 1);
 
                 break;
 
@@ -566,7 +670,64 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 }
                 break;
             //case 'BILL_SENTBYMAIL':
-            //case 'BILL_CANCEL':
+            case 'BILL_CANCEL':
+                $almacen = GETPOST('idwarehouse', 'int');
+                if ($object->type == 0) {
+                    $lineas = count($object->lines);
+                    for ($i = 0; $i < $lineas; $i++) {
+
+                        if ($object->lines[$i]->array_options["options_pedimento"] != null) {
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+                            if ($producto->array_options["options_batch"] == 1) {
+
+                                $qty = $object->lines[$i]->qty;
+
+                                $fields = array('pb.rowid AS idbatch', 'pb.qty');
+                                $select = new PO\QueryBuilder\Statements\Select();
+                                $select->select($fields);
+                                $select->from('llx_product AS p');
+                                $select->innerJoin(MAIN_DB_PREFIX . 'product_stock AS ps', 'p.rowid = ps.fk_product');
+                                $select->innerJoin(MAIN_DB_PREFIX . 'product_lot AS pl', 'p.rowid = pl.fk_product');
+                                $select->innerJoin(MAIN_DB_PREFIX . 'product_batch AS pb', 'p.rowid = pl.fk_product');
+                                $select->where('p.rowid', $object->lines[$i]->fk_product, '=');
+                                $select->where('ps.fk_entrepot', $almacen, '=');
+                                $select->where('pb.batch', $object->lines[$i]->array_options['options_pedimento'], '=');
+                                $select->groupBy('idbatch');
+
+                                // echo $select->toSql();
+                                // exit;
+                                $resql = $this->db->query($select->toSql());
+                                $num = $this->db->num_rows($resql);
+                                $j = 0;
+
+                                while ($j < $num) {
+                                    $obj = $this->db->fetch_object($resql);
+                                    if ($obj) {
+                                        if ($qty <= $obj->qty) {
+
+                                            $suma = $obj->qty + $qty;
+                                            $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'product_batch');
+                                            $update->set(['qty' => $suma])->where('rowid', ':idbatch');
+                                            $resultado = $this->db->query($update->toSql(['idbatch' => $obj->idbatch]));
+
+                                            // echo $resultado;
+                                            // exit;
+
+                                            //guardarlo en un registro
+                                        }
+                                    }
+                                    $j++;
+
+                                }
+                            }
+
+                        }
+
+                    }
+                }
+
+                break;
             //case 'BILL_DELETE':
             //case 'BILL_PAYED':
             case 'LINEBILL_INSERT':
@@ -805,5 +966,95 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
         }
 
         return 0;
+    }
+
+    private function actualizarTabla($tabla, $id, $campovalor = [])
+    {
+        global $db;
+
+        $update = new PO\QueryBuilder\Statements\Update;
+        $update->table(MAIN_DB_PREFIX . $tabla);
+        $update->set($campovalor)->where('rowid', ':rowid');
+
+        $result = $db->query($update->toSql(array('rowid' => $id)));
+
+        if ($result > 0) {
+
+            return true;
+
+        } else {
+
+            return false;
+
+        }
+
+    }
+    private function consultarPedimento($lote, $almacen, $producto)
+    {
+        global $db;
+
+        $campos = ['p.rowid AS idproduct', 'ps.rowid AS idstock', 'pb.rowid AS idbatch', 'pb.batch', 'pb.qty', 'ps.reel AS stock'];
+        $select = new PO\QueryBuilder\Statements\Select();
+        $select->select($campos);
+        $select->from(MAIN_DB_PREFIX . 'product_batch AS pb');
+        $select->innerJoin(MAIN_DB_PREFIX . 'product_stock as ps', 'pb.fk_product_stock = ps.rowid');
+        $select->innerJoin(MAIN_DB_PREFIX . 'product as p', 'ps.fk_product = p.rowid');
+        if (!isset($lote)) {
+
+            $select->where('ps.fk_entrepot', $almacen, '=');
+            $select->where('p.rowid', $producto, '=');
+
+            $result = $db->query($select->toSql());
+            $num = $db->num_rows($result);
+
+            //devolver la suma de los pedimentos
+
+            $totalStock = 0;
+            $totalPedimento = 0;
+
+            if ($num > 0) {
+                $i = 0;
+
+                while ($i < $num) {
+
+                    $obj = $db->fetch_object($result);
+
+                    $totalPedimento += $obj->qty;
+                    $totalStock = $obj->stock;
+                    $i++;
+
+                }
+
+                return [
+                    'totalstock' => intval($totalStock),
+                    'totalpediment' => $totalPedimento,
+                ];
+
+            } else {
+
+                return null;
+
+            }
+
+        } else {
+            $select->where('pb.batch', $lote, '=');
+            $select->where('ps.fk_entrepot', $almacen, '=');
+            $select->where('p.rowid', $producto, '=');
+
+            $result = $db->query($select->toSql());
+            $num = $db->num_rows($result);
+
+            //existe pedimento
+            if ($num > 0) {
+
+                return $obj = $db->fetch_object($result);
+
+            } else {
+
+                return null;
+
+            }
+        }
+
     }
 }

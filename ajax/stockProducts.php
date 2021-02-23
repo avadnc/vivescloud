@@ -142,7 +142,7 @@ if ($idProducto != null) {
 }
 
 if($productoLote != null){
-    $result = $consulta->cargarLoteProducto($productoLote);
+    $result = $consulta->cargarLoteProducto($productoLote,$almacen);
 echo json_encode($result);
 
 }

@@ -85,7 +85,7 @@ class modVivescloud extends DolibarrModules
             // Set this to 1 if module has its own menus handler directory (core/menus)
             'menus' => 0,
             // Set this to 1 if module overwrite template dir (core/tpl)
-            'tpl' => 0,
+            'tpl' => 1,
             // Set this to 1 if module has its own barcode directory (core/modules/barcode)
             'barcode' => 0,
             // Set this to 1 if module has its own models directory (core/modules/xxx)
@@ -113,7 +113,8 @@ class modVivescloud extends DolibarrModules
                        'invoicecard',
                        'ordersuppliercard',
                        'ordersupplierdispatch',
-                       'stockproductcard'
+                       'stockproductcard',
+                       
                    ),
                 //   'entity' => '0',
             ),

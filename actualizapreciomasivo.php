@@ -70,15 +70,18 @@ require_once DOL_DOCUMENT_ROOT . '/core/lib/invoice.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/files.lib.php';
 
+echo'<pre>';
+var_dump($_COOKIE);
+exit;
 //Llamando al Autoload
 dol_include_once('/vivescloud/lib/Smartie.php');
 dol_include_once('/vivescloud/vendor/autoload.php');
 
-$campos = ['fk_product'];
+$campos = ['rowid','date_valid'];
 $consulta = PO\QueryBuilder::factorySelect();
 $consulta->select($campos);
-$consulta->from(MAIN_DB_PREFIX . 'product');
-$consulta->where('ref','TMX-%','like');
+$consulta->from(MAIN_DB_PREFIX . 'facture');
+$consulta->where('fk_mode_reglement',2,'=');
 
 $resql = $db->query($consulta->toSql());
 $num = $db->num_rows($resql);
@@ -94,14 +97,14 @@ if ($num) {
    
 
            
-                $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'product_extrafields');
+                $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'facture');
                 $update->set([
-                    'batch' => 0,
+                    'date_lim_reglement' => date("d-m-Y",strtotime($obj->date_valid."+ 1 days"))
                   
-                ])->where('fk_object', ':fk_object');
+                ])->where('rowid', ':rowid');
 
                 $result += $db->query($update->toSql([
-                    'fk_object' => $obj->fk_product,
+                    'rowid' => $obj->rowid,
                 ]));
           
 

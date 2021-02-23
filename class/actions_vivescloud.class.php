@@ -95,6 +95,8 @@ class ActionsVivescloud
 
         $error = 0; // Error counter
 
+        // var_dump($parameters['currentcontext']);
+        // exit;
         /* print_r($parameters); print_r($object); echo "action: " . $action; */
         if (in_array($parameters['currentcontext'], array('invoicecard'))) // do something only for the context 'somecontext1' or 'somecontext2'
         {
@@ -273,15 +275,16 @@ class ActionsVivescloud
                 echo '</select></p>';
                 echo '<p><label for="accion"> Acción: </label><select id="accion"><option value="sumar">Añadir</option><option value="restar">Quitar</option></select></p>';
                 echo '<p><label for="cantidad">Cantidad:</label><input type="text" id="cantidad"></p>';
-                echo '<p><label for="pedimento">Pedimento:</label><select class="selector" id="pedimento">';
+                echo '<p><label for="pedimento">Pedimento: </label><input type="text" id="pedimento" name="pedimento"></p>';
+                // echo '<p><label for="pedimento">Pedimento:</label><select class="selector" id="pedimento">';
 
-                $lineas = count($pedimentos);
+                // $lineas = count($pedimentos);
 
-                for ($i = 0; $i < $lineas; $i++) {
-                    echo '<option value="' . $pedimentos[$i]->batch . '">' . $pedimentos[$i]->ref . '-' . $pedimentos[$i]->batch . '</option>';
-                }
+                // for ($i = 0; $i < $lineas; $i++) {
+                //     echo '<option value="' . $pedimentos[$i]->batch . '">' . $pedimentos[$i]->ref . '-' . $pedimentos[$i]->batch . '</option>';
+                // }
 
-                echo '</select></p>';
+                // echo '</select></p>';
                 echo '</div>';
 
                 //Transferir Stock
@@ -354,24 +357,25 @@ class ActionsVivescloud
      *                                  =0 if OK but we want to process standard actions too,
      *                                  >0 if OK and we want to replace standard actions.
      */
-    // public function beforePDFCreation($parameters, &$object, &$action)
-    // {
-    //     global $conf, $user, $langs;
-    //     global $hookmanager;
+    public function beforePDFCreation($parameters, &$object, &$action)
+    {
+        global $conf, $user, $langs;
+        global $hookmanager;
 
-    //     $outputlangs = $langs;
+        $outputlangs = $langs;
 
-    //     $ret = 0;
-    //     $deltemp = array();
-    //     dol_syslog(get_class($this) . '::executeHooks action=' . $action);
+        $ret = 0;
+        $deltemp = array();
+        dol_syslog(get_class($this) . '::executeHooks action=' . $action);
 
-    //     /* print_r($parameters); print_r($object); echo "action: " . $action; */
-    //     if (in_array($parameters['currentcontext'], array('somecontext1', 'somecontext2'))) // do something only for the context 'somecontext1' or 'somecontext2'
-    //     {
-    //     }
+        /* print_r($parameters); print_r($object); echo "action: " . $action; */
+        if (in_array($parameters['currentcontext'], array('pdf_writelinedesc'))) // do something only for the context 'somecontext1' or 'somecontext2'
+        {
+            var_dump($object);
+        }
 
-    //     return $ret;
-    // }
+        return $ret;
+    }
 
     /**
      * Execute action
@@ -467,6 +471,36 @@ class ActionsVivescloud
         return 0;
     }
 
+    public function pdf_writelinedesc($parameters, &$object, &$action)
+    {
+
+        global $db, $conf, $langs;
+
+        $object->total_ht  = round($object->total_ht, 2);
+        $object->total_tva = round($object->total_tva,2);
+        $object->total_ttc = round($object->total_ttc,2);
+        $object->multicurrency_total_ht  = round($object->multicurrency_total_ht,2);
+        $object->multicurrency_total_tva = round($object->multicurrency_total_tva,2);
+        $object->multicurrency_total_ttc = round($object->multicurrency_total_ttc,2);
+
+        $lineas = count($object->lines);
+        for ($i = 0; $i < $lineas; $i++) {
+            $object->lines[$i]->pu_ht = round($object->lines[$i]->pu_ht, 2);
+
+            $object->lines[$i]->subprice  = round($object->lines[$i]->subprice, 2);
+            $object->lines[$i]->total_ht  = round($object->lines[$i]->total_ht, 2);
+            $object->lines[$i]->total_tva = round($object->lines[$i]->total_tva, 2);
+            $object->lines[$i]->total_ttc = round($object->lines[$i]->total_ttc, 2);
+
+            $object->lines[$i]->multicurrency_subprice  = round($object->lines[$i]->multicurrency_subprice, 2);
+            $object->lines[$i]->multicurrency_total_ht  = round($object->lines[$i]->multicurrency_total_ht, 2);
+            $object->lines[$i]->multicurrency_total_tva = round($object->lines[$i]->multicurrency_total_tva, 2);
+            $object->lines[$i]->multicurrency_total_ttc = round($object->lines[$i]->multicurrency_total_ttc, 2);
+
+        }
+
+    }
+
     public function addMoreActionsButtons($parameters, &$object, &$action, $hookmanager)
     {
 
@@ -474,7 +508,7 @@ class ActionsVivescloud
 
         if (in_array('invoicecard', explode(':', $parameters['context']))) {
             $factura = $object->ref;
-$factura = explode("-", $factura);
+            $factura = explode("-", $factura);
 
             if ($factura[0] == "C" || $factura[0] == "VAL") {
                 if ($object->statut != 0) {
