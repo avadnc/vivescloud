@@ -2,6 +2,8 @@ $(document).ready(function () {
   //borramos pedimentos
   let qty;
   let pedimento;
+  $("#search_idprodfournprice").focus();
+  
   $("#options_pedimento").hide();
   $("#options_numposicionzf").parent().parent().hide();
 
@@ -34,16 +36,18 @@ $(document).ready(function () {
   }
 
   //Modificación para StocTransfers de Sergi Rodrigues
-  if (window.location.href.indexOf("/custom/stocktransfers/transfer_edit.php") > -1) {
+  if (
+    window.location.href.indexOf("/custom/stocktransfers/transfer_edit.php") >
+    -1
+  ) {
     // alert("estoy en transferencias masivas");
     $("input[name='batch']").hide();
 
-    var almacen; 
-  
-      almacen = $("#fk_depot1").val();
-      console.log(almacen);
-    
-    
+    var almacen;
+
+    almacen = $("#fk_depot1").val();
+    console.log(almacen);
+
     // añadir pedimento
 
     if ($("#search_pid").length) {
@@ -53,8 +57,9 @@ $(document).ready(function () {
           $.ajax({
             url:
               "/custom/vivescloud/ajax/stockProducts.php?productoLote=" +
-              producto + "&almacen="+ almacen
-              ,
+              producto +
+              "&almacen=" +
+              almacen,
             type: "GET",
             dataType: "json",
             async: false,
@@ -119,24 +124,23 @@ $(document).ready(function () {
         }
       });
     }
-     $("input[name='n']").focusout(function () {
-       cantidad = $(this).val();
-       // parseInt(cantidad);
-       // console.log(cantidad);
-       // console.log(qty);
-       // console.log(cantidad > qty);
-       resultado = compara(parseInt(cantidad), parseInt(qty));
-       if (resultado == true) {
-         Swal.fire({
-           icon: "error",
-           title: "Oops...",
-           text: "Stock Insuficiente para ese Pedimento",
-         });
-       }
-     });
+    $("input[name='n']").focusout(function () {
+      cantidad = $(this).val();
+      // parseInt(cantidad);
+      // console.log(cantidad);
+      // console.log(qty);
+      // console.log(cantidad > qty);
+      resultado = compara(parseInt(cantidad), parseInt(qty));
+      if (resultado == true) {
+        Swal.fire({
+          icon: "error",
+          title: "Oops...",
+          text: "Stock Insuficiente para ese Pedimento",
+        });
+      }
+    });
   }
-    
-   
+
   var moneda = $.ajax({
     url: "/custom/vivescloud/ajax/actualizaMoneda.php?cargarhistorico=dolar",
     type: "GET",
@@ -249,34 +253,6 @@ $(document).ready(function () {
       }
     });
   }
-  // var producto = null;
-
-  // if ($("#product_id").length) {
-  //   $.ajax({
-  //     url:
-  //       "/custom/vivescloud/ajax/stockProducts.php?productoid=" +
-  //       $("#product_id").val(),
-  //     type: "GET",
-  //     dataType: "json",
-  //     success: function (data) {
-  //       console.log(data);
-
-  //       $.each(data, function (key, value) {
-  //         console.log(value);
-
-  //         $("#options_stocks").after(function () {
-  //           return (
-  //             "<div><span style='color:white;background-color:red;font-size:20px;font-weight: bold;padding:px;'>Almacén:" +
-  //             value.warehouse +
-  //             "</span>  <strong>Stock:</strong>" +
-  //             value.stock +
-  //             "<br></div>"
-  //           );
-  //         });
-  //       });
-  //     },
-  //   });
-  // }
 
   // Buscar Pedimento
   if ($("#search_idprod").length) {
@@ -291,6 +267,7 @@ $(document).ready(function () {
           dataType: "json",
           async: false,
           success: function (data) {
+            console.log(data);
             if (data == null) {
               return;
             } else {
@@ -350,10 +327,6 @@ $(document).ready(function () {
 
   $("#qty").focusout(function () {
     cantidad = $(this).val();
-    // parseInt(cantidad);
-    // console.log(cantidad);
-    // console.log(qty);
-    // console.log(cantidad > qty);
     resultado = compara(parseInt(cantidad), parseInt(qty));
     if (resultado == true) {
       Swal.fire({
@@ -362,17 +335,46 @@ $(document).ready(function () {
         text: "Stock Insuficiente para ese Pedimento",
       });
     }
-
-    // if (cantidad > qty) {
-
-    // }
   });
 
   $("#multicurrency_price_ht").focusout(function () {
     precio = $(this).val();
     precio_moneda = precio * moneda.label;
-    // console.log(precio_moneda);
+
     $("#price_ht").val(precio_moneda);
+  });
+  $("#multicurrency_subprice").focusout(function () {
+    precio = $(this).val();
+    precio_moneda = precio * moneda.label;
+
+    $("#price_ht").val(precio_moneda);
+  });
+
+  //Cargar Precios Pedido Proveedor
+  $("#search_idprodfournprice").focusout(function () {
+    producto = $(this).val();
+    console.log(producto);
+    $.ajax({
+      url:
+        "/custom/vivescloud/ajax/actualizaProduct.php?referencia=" + producto,
+      dataType: "json",
+      dataSrc: "",
+      success: function (data) {
+        console.log(data);
+        if (data[0].moneda == "USD" || data[0].moneda == "EUR") {
+          if ($("#multicurrency_price_ht").length) {
+            $("#multicurrency_price_ht").val(
+              parseFloat(data[0].precio_moneda).toFixed(2)
+            );
+            $("#price_ht").val(parseFloat(data[0].cost_price).toFixed(2));
+          } else {
+            $("#price_ht").val(parseFloat(data[0].cost_price).toFixed(2));
+          }
+        } else {
+          $("#price_ht").val(parseFloat(data[0].cost_price).toFixed(2));
+        }
+      },
+    });
   });
 
   function compara(a, b) {

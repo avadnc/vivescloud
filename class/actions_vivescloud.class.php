@@ -163,18 +163,18 @@ class ActionsVivescloud
 
         $error = 0; // Error counter
 
-        /* print_r($parameters); print_r($object); echo "action: " . $action; */
-        if (in_array($parameters['currentcontext'], array('invoicecard', 'somecontext2'))) // do something only for the context 'somecontext1' or 'somecontext2'
-        {
-            $this->resprints = '<option value="0"' . ($disabled ? ' disabled="disabled"' : '') . '>' . $langs->trans("VivescloudMassAction") . '</option>';
-        }
+        //  print_r($parameters); print_r($object); echo "action: " . $action;
+        // if (in_array($parameters['currentcontext'], array('invoicecard', 'somecontext2'))) // do something only for the context 'somecontext1' or 'somecontext2'
+        // {
+        //     $this->resprints = '<option value="0"' . ($disabled ? ' disabled="disabled"' : '') . '>' . $langs->trans("VivescloudMassAction") . '</option>';
+        // }
 
-        if (!$error) {
-            return 0; // or return 1 to replace standard code
-        } else {
-            $this->errors[] = 'Error message';
-            return -1;
-        }
+        // if (!$error) {
+        //     return 0; // or return 1 to replace standard code
+        // } else {
+        //     $this->errors[] = 'Error message';
+        //     return -1;
+        // }
     }
 
     /**
@@ -192,6 +192,43 @@ class ActionsVivescloud
         global $conf, $user, $langs, $db;
 
         $error = 0; // Error counter
+        // echo '<pre>';
+        // var_dump($parameters);
+        // exit;
+
+        if (in_array($parameters['currentcontext'], array('thirdpartycomm'))) {
+
+            if (!$user->rights->vivescloud->permitirfactura->write) {
+                echo '<script>$(document).ready(function(){ $("[href*=\'multiprix\']").hide(); });  </script>';
+
+            }
+        }
+        if (in_array($parameters['currentcontext'], array('invoicesuppliercard'))) {
+            // echo '<pre>';
+            // var_dump($object);
+            // echo '</pre>';
+            if ($object->multicurrency_code == "USD") {
+                $tipoCambio = $object->multicurrency_tx;
+                $resultado = $object->total_ttc * $tipoCambio;
+
+                echo '<script>
+                $(document).ready(function(){
+                  $(".amountremaintopay").html("$ ' . round(price2num($resultado), 2) . ' USD");
+                   });</script>';
+
+            }
+            if ($object->multicurrency_code == "EUR") {
+                $tipoCambio = $object->multicurrency_tx;
+                $resultado = $object->total_ttc * $tipoCambio;
+
+                echo '<script>
+                $(document).ready(function(){
+                  $(".amountremaintopay").html("€ ' . round(price2num($resultado), 2) . ' EUR");
+                   });</script>';
+
+            }
+
+        }
 
         if (in_array($parameters['currentcontext'], array('stockproductcard'))) {
             dol_include_once('/vivescloud/class/ConsultasStockProductos.class.php');
@@ -326,14 +363,34 @@ class ActionsVivescloud
         /* print_r($parameters); print_r($object); echo "action: " . $action; */
         if (in_array($parameters['currentcontext'], array('invoicecard'))) // do something only for the context 'somecontext1' or 'somecontext2'
         {
-            // echo'<pre>';
-            // var_dump($object);
-            // echo'</pre>';
+            if ($object->multicurrency_code == "USD") {
+                //    echo '<pre>';var_dump($object);echo '</pre>';
+                $pago = ($object->totalpaye) ? $object->totalpaye * $object->multicurrency_tx : 0;
+                $restoPago = $object->multicurrency_total_ttc - $pago;
 
-            // if ($object->socid != null) {
-            //     echo '<tr><td style="background-color:blue;color:white;">Ubicación en Almacenes:</td><td><div id="options_stocks"></div></tr>';
-            // }
-            // echo $object->modelpdf;
+                if (round($restoPago, 2) <= 0) {
+                    echo "el pago está completado";
+                }
+
+                echo '<script>
+                $(document).ready(function(){
+                    var multicurrency = ' . $object->multicurrency_tx . ';
+                  $(".amountremaintopay").html("$ ' . round($restoPago, 2) . ' USD");
+                  $(".amountremaintopay").parent().prev("tr").find("td:eq(1)").html("' . round($object->multicurrency_total_ttc, 2) . ' USD");
+                  $(".amountremaintopay").parent().prev("tr").prev("tr").find("td:eq(1)").html("' . round($pago, 2) . ' USD");
+
+
+                   $("[href*=\'paiement_id\']").each(function(){
+                     valor = $(this).closest("td").prev("td").html();
+                     tipoCambio = valor * multicurrency;
+                     $(this).closest("td").prev("td").html(tipoCambio.toFixed(2)+" USD");
+
+                  });
+
+
+                   });</script>';
+
+            }
 
             $factura = $object->ref;
             $factura = explode("-", $factura);
@@ -342,11 +399,36 @@ class ActionsVivescloud
             if ($factura[0] == "C" || $factura[0] == "VAL") {
                 echo '<script>$(document).ready(function(){ $("[href*=\'cfdimx\']").hide(); });  </script>';
             }
+            if ($factura[0] == "M" || $factura[0] == "V") {
+                if (!$user->rights->vivescloud->modificarfactura->write) {
+                    echo '<script>$(document).ready(function(){ $("[href*=\'reopen\']").hide(); });  </script>';
+                    echo '<script>$(document).ready(function(){ $("[href*=\'canceled\']").hide(); });  </script>';
+                    echo '<script>$(document).ready(function(){ $("[href*=\'formmailbeforetitle\']").hide(); });  </script>';
+
+                }
+
+            }
+
+            if ($object->array_options["options_formpagcfdi"] == "PUE") {
+                echo '<script>$(document).ready(function(){ $("[href*=\'pagos.php\']").hide(); });  </script>';
+
+            }
+
+            //validar si es fiscal o no
+            $sql = "SELECT ref from " . MAIN_DB_PREFIX . "numberseries where rowid =" . $object->array_options["options_serie"];
+            $result = $db->query($sql);
+            $num = $db->num_rows($result);
+            if ($num > 0) {
+                $obj = $db->fetch_object($result);
+                $tipo = explode(" ", $obj->ref);
+                if ($tipo[0] == "Factura") {
+                    echo '<script>$(document).ready(function(){ $("#tva_tx").hide(); });  </script>';
+                }
+            }
 
         }
 
     }
-
     /**
      * Execute action
      *
@@ -476,24 +558,24 @@ class ActionsVivescloud
 
         global $db, $conf, $langs;
 
-        $object->total_ht  = round($object->total_ht, 2);
-        $object->total_tva = round($object->total_tva,2);
-        $object->total_ttc = round($object->total_ttc,2);
-        $object->multicurrency_total_ht  = round($object->multicurrency_total_ht,2);
-        $object->multicurrency_total_tva = round($object->multicurrency_total_tva,2);
-        $object->multicurrency_total_ttc = round($object->multicurrency_total_ttc,2);
+        $object->total_ht = round($object->total_ht, 2);
+        $object->total_tva = round($object->total_tva, 2);
+        $object->total_ttc = round($object->total_ttc, 2);
+        $object->multicurrency_total_ht = round($object->multicurrency_total_ht, 2);
+        $object->multicurrency_total_tva = round($object->multicurrency_total_tva, 2);
+        $object->multicurrency_total_ttc = round($object->multicurrency_total_ttc, 2);
 
         $lineas = count($object->lines);
         for ($i = 0; $i < $lineas; $i++) {
             $object->lines[$i]->pu_ht = round($object->lines[$i]->pu_ht, 2);
 
-            $object->lines[$i]->subprice  = round($object->lines[$i]->subprice, 2);
-            $object->lines[$i]->total_ht  = round($object->lines[$i]->total_ht, 2);
+            $object->lines[$i]->subprice = round($object->lines[$i]->subprice, 2);
+            $object->lines[$i]->total_ht = round($object->lines[$i]->total_ht, 2);
             $object->lines[$i]->total_tva = round($object->lines[$i]->total_tva, 2);
             $object->lines[$i]->total_ttc = round($object->lines[$i]->total_ttc, 2);
 
-            $object->lines[$i]->multicurrency_subprice  = round($object->lines[$i]->multicurrency_subprice, 2);
-            $object->lines[$i]->multicurrency_total_ht  = round($object->lines[$i]->multicurrency_total_ht, 2);
+            $object->lines[$i]->multicurrency_subprice = round($object->lines[$i]->multicurrency_subprice, 2);
+            $object->lines[$i]->multicurrency_total_ht = round($object->lines[$i]->multicurrency_total_ht, 2);
             $object->lines[$i]->multicurrency_total_tva = round($object->lines[$i]->multicurrency_total_tva, 2);
             $object->lines[$i]->multicurrency_total_ttc = round($object->lines[$i]->multicurrency_total_ttc, 2);
 
@@ -507,6 +589,7 @@ class ActionsVivescloud
         global $db;
 
         if (in_array('invoicecard', explode(':', $parameters['context']))) {
+
             $factura = $object->ref;
             $factura = explode("-", $factura);
 
@@ -534,6 +617,7 @@ width=600,height=800,left=-1000,top=-1000`;
 
                 }
             }
+
         }
     }
 

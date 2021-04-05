@@ -240,7 +240,7 @@ if ($moneda == 'dolar') {
     $update->set(array(
         'label' => $valor_moneda,
     ))->where('code', 'USD');
-    
+
     $db->begin();
     $db->query($update->toSql());
     $db->commit();
@@ -303,8 +303,11 @@ if ($moneda == 'dolar') {
                      */
 
                     $precioCosto = round(price2num($precioCompra) * price2num($valor_moneda), 2);
-                    $producto->cost_price = $precioCosto;
-                    $producto->update($producto->id, $user);
+                    $sql = "UPDATE llx_product set cost_price = " . $precioCosto . " where rowid =" . $producto->id;
+                    $db->query($sql);
+                    $sql = "DELETE from llx_product_price where fk_product =" . $producto->id;
+                    $db->query($sql);
+
                     if ($resultado > 0) {
                         $db->commit();
                     } else {
@@ -410,20 +413,17 @@ if ($moneda == 'dolar') {
                     if ($res < 0) {
                         echo "error";
                         echo $producto->error;
+                        echo $producto->ref;
+                        $db->rollback();
+
                         exit;
                         $error++;
                         setEventMessages($producto->error, $producto->errors, 'errors');
                         break;
                     }
                 }
+                $db->commit();
 
-                $resultado = $producto->update($producto->id, $user);
-                if ($resultado > 0) {
-                    $db->commit();
-                } else {
-                    echo $producto->ref;
-                    $db->rollback();
-                }
             }
             $j++;
         }
@@ -436,42 +436,6 @@ if ($moneda == 'dolar') {
 if ($moneda == 'euro') {
 
     /* Actualizar Tipo Cambio*/
-    $campos = [
-        'rowid',
-    ];
-    $consulta = PO\QueryBuilder::factorySelect();
-    $consulta->select($campos);
-    $consulta->from(MAIN_DB_PREFIX . 'multicurrency');
-    $consulta->where([
-        [MAIN_DB_PREFIX . 'multicurrency.code', 'EUR', '='],
-
-    ]);
-
-    $resql = $db->query($consulta->toSql());
-
-    $resultado = $db->fetch_array($resql);
-
-    $tipocambioDoli = 1 / $valor_moneda;
-
-    $fk_multicurrency = $resultado["rowid"];
-    $rate = price2num($tipocambioDoli);
-    $currency = new MultiCurrency($db);
-
-    if (empty($rate)) {
-        setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv("Rate")), null, 'errors');
-        $error++;
-    }
-    if (!$error) {
-        if ($currency->fetch($fk_multicurrency) > 0) {
-            $result = $currency->updateRate($rate);
-            if ($result < 0) {
-                setEventMessages(null, $currency->errors, 'errors');
-            }
-        }
-    }
-
-    /* Fin Tipo Cambio */
-
     $campos = [
         'rowid',
     ];
@@ -557,6 +521,10 @@ if ($moneda == 'euro') {
         'label' => $valor_moneda,
     ))->where('code', 'EUR');
 
+    $db->begin();
+    $db->query($update->toSql());
+    $db->commit();
+
     $insert = PO\QueryBuilder::insert();
     $insert->into(MAIN_DB_PREFIX . 'vivescloud_tipocambio_registro')->values(array(
         'fk_moneda' => $id->rowid,
@@ -566,6 +534,15 @@ if ($moneda == 'euro') {
         'fk_user_creat' => $user->id,
         'fk_user_modif' => $user->id,
     ));
+
+    $db->begin();
+    $db->query($insert->toSql());
+    $db->commit();
+
+    $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'const');
+    $update->set(array(
+        'value' => "€ " . $valor_moneda . " a fecha " . date('Y-m-d'),
+    ))->where('name', 'TIPO_CAMBIO_EUR');
 
     $db->begin();
     $db->query($update->toSql());
@@ -578,19 +555,9 @@ if ($moneda == 'euro') {
     $consulta->from(MAIN_DB_PREFIX . 'product_extrafields');
     $consulta->where('moneda', 'EUR', '=');
 
-    $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'const');
-    $update->set(array(
-        'value' => "€ " . $valor_moneda . " a fecha " . date('Y-m-d'),
-    ))->where('name', 'TIPO_CAMBIO_EURO');
+    $resql = $db->query($consulta->toSql() . 'AND precio_moneda IS NOT NULL');
 
-    $db->begin();
-    $db->query($update->toSql());
-    $db->commit();
-
-    $resql = $db->query($consulta->toSql() . 'precio_moneda IS NOT NULL');
     $num = $db->num_rows($resql);
-    $insertar = [];
-    $updatePrecioCosto = [];
 
     if ($num > 0) {
         $j = 0;
@@ -616,8 +583,11 @@ if ($moneda == 'euro') {
                      */
 
                     $precioCosto = round(price2num($precioCompra) * price2num($valor_moneda), 2);
-                    $producto->cost_price = $precioCosto;
-                    $producto->update($producto->id, $user);
+                    $sql = "UPDATE llx_product set cost_price = " . $precioCosto . " where rowid =" . $producto->id;
+                    $db->query($sql);
+                    $sql = "DELETE from llx_product_price where fk_product =" . $producto->id;
+                    $db->query($sql);
+
                     if ($resultado > 0) {
                         $db->commit();
                     } else {
@@ -723,20 +693,16 @@ if ($moneda == 'euro') {
                     if ($res < 0) {
                         echo "error";
                         echo $producto->error;
+                        echo $producto->ref;
+                        $db->rollback();
+
                         exit;
                         $error++;
                         setEventMessages($producto->error, $producto->errors, 'errors');
                         break;
                     }
                 }
-
-                $resultado = $producto->update($producto->id, $user);
-                if ($resultado > 0) {
-                    $db->commit();
-                } else {
-                    echo $producto->ref;
-                    $db->rollback();
-                }
+                $db->commit();
             }
             $j++;
         }

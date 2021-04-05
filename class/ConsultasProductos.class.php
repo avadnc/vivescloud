@@ -65,6 +65,8 @@ class ConsultasProductos
             $consulta->innerJoin(MAIN_DB_PREFIX . 'product', 'fk_product = rowid');
             $consulta->where([
                 [MAIN_DB_PREFIX . 'categorie_product.fk_categorie', $marca, '='],
+                [MAIN_DB_PREFIX . 'product.tosell', 1, '='],
+
 
             ]);
         } else {
@@ -77,6 +79,7 @@ class ConsultasProductos
             $consulta->where([
                 [MAIN_DB_PREFIX . 'categorie_product.fk_categorie', $marca, '='],
                 [MAIN_DB_PREFIX . 'product.entity', $conf->entity, '='],
+                [MAIN_DB_PREFIX . 'product.tosell', 1, '='],
             ]);
         }
 
@@ -246,25 +249,41 @@ class ConsultasProductos
         return array_values($productos);
     }
 
-    public function insertarMargenes($precioCompra, $refe)
+    public function insertarMargenes($precioCompra, $refe = [])
     {
         global $db, $conf, $user;
 
+        $producto = new Product($db);
+       
+
+        if (is_array($refe)) {
+                if ($refe['ref'] != null) {
+
+                $producto->fetch(null, $refe['ref']);
+
+            }
+            if ($refe['rowid'] != null) {
+
+                $producto->fetch($refe['rowid']);
+
+            }
+        } else {
+
+            $producto->fetch(null, $refe);
+
+        }
         if (!is_numeric($precioCompra)) {
             echo "error";
             exit;
         }
 
-        $producto = new Product($db);
-
-        $producto->fetch(null, $refe);
         $productoProveedor = new ProductFournisseur($db);
-        $productoProveedor->fetch(null,$refe);
+        $productoProveedor->fetch(null, $refe);
 
-//si el producto esta configurado en euros o dolares
+        //si el producto esta configurado en euros o dolares
         if ($producto->array_options["options_moneda"] == 'EUR' || $producto->array_options["options_moneda"] == 'USD') {
 
-            $campos = array('label');
+
             $consulta = PO\QueryBuilder::factorySelect();
             $consulta->from(MAIN_DB_PREFIX . 'c_cfdimx_tipocambiocfdi');
             $consulta->where([
@@ -280,28 +299,41 @@ class ConsultasProductos
                 $margen1 = $producto->array_options["options_margen1"];
                 $margen2 = $producto->array_options["options_margen2"];
                 $margen3 = $producto->array_options["options_margen3"];
-//asignar valores
+                //asignar valores
                 $precioCosto = round(price2num($precioCompra) * price2num($obj->label), 2);
-                $producto->cost_price = $precioCosto;
+                $producto->cost_price = $precioCosto;         
+                $sql = "DELETE from llx_product_price where fk_product =" . $producto->id;
+                $db->query($sql);
 
                 if ($margen1) {
+                    if ($margen1 == 0) {
+                        $margen1 = 8;
+                    }
 
                     $precio1 = $precioCosto * (1 + ($margen1 / 100));
 
                 }
                 if ($margen2) {
 
+                    if ($margen2 == 0) {
+                        $margen2 = 8;
+                    }
+
                     $precio2 = $precioCosto * (1 + ($margen2 / 100));
 
                 }
                 if ($margen3) {
+                    if ($margen3 == 0) {
+                        $margen3 = 8;
+                    }
 
                     $precio3 = $precioCosto * (1 + ($margen3 / 100));
-
                 }
 
             }
             $producto->array_options["options_precio_moneda"] = $precioCompra;
+            $preciominimo = $precioCosto * (1 + (8 / 100));
+
         } else {
 
             $margen1 = $producto->array_options["options_margen1"];
@@ -313,27 +345,39 @@ class ConsultasProductos
             $precioCosto = round(price2num($precioCompra), 2);
             $producto->cost_price = $precioCosto;
 
+            $sql = "DELETE from llx_product_price where fk_product =" . $producto->id;
+            $db->query($sql);
+                       
             if ($margen1) {
-
-                $precio1 = $precioCosto * (1 + ($margen1 / 100));
+                if ($margen1 == 0) {
+                    $margen1 = 8;
+                }
+             $precio1 = $precioCosto * (1 + ($margen1 / 100));
 
             }
             if ($margen2) {
+
+                if ($margen2 == 0) {
+                    $margen2 = 8;
+                }
 
                 $precio2 = $precioCosto * (1 + ($margen2 / 100));
 
             }
             if ($margen3) {
+                if ($margen3 == 0) {
+                    $margen3 = 8;
+                }
 
                 $precio3 = $precioCosto * (1 + ($margen3 / 100));
-
             }
 
             //precio minimo basado en el 8 de felipe davila
             $preciominimo = $precioCosto * (1 + (8 / 100));
 
         }
-// Multiprices
+
+        // Multiprices
         if (!$error && !empty($conf->global->PRODUIT_MULTIPRICES)) {
 
             for ($i = 1; $i <= $conf->global->PRODUIT_MULTIPRICES_LIMIT; $i++) {
@@ -370,6 +414,7 @@ class ConsultasProductos
                 );
 
             }
+
         }
 
         $db->begin();
@@ -384,20 +429,21 @@ class ConsultasProductos
 
             $newprice = price2num($newprice, 'MU');
             $newprice_min = price2num($val['price_min'], 'MU');
-
+        
             $res = $producto->updatePrice($newprice, $val['price_base_type'], $user, $val['vat_tx'], $newprice_min, $key, $val['npr'], 0, 0, $val['localtaxes_array']);
-
+          
             if ($res < 0) {
                 $error++;
                 setEventMessages($producto->error, $producto->errors, 'errors');
-                break;
+                $db->rollback();
+                return;
             }
         }
 
-        $resultado = $producto->update($producto->id, $user);
-        if ($resultado > 0) {
+      
             $db->commit();
 
+            $producto->update($producto->id,$user);
             $producto->fetch($producto->id);
             $producto_array = [
 
@@ -407,10 +453,6 @@ class ConsultasProductos
             ];
 
             return $producto_array;
-
-        } else {
-            $db->rollback();
-        }
 
     }
 }

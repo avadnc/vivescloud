@@ -93,100 +93,52 @@ dol_include_once('/vivescloud/lib/Smartie.php');
 dol_include_once('/vivescloud/vendor/autoload.php');
 dol_include_once('/vivescloud/class/ConsultasProductos.class.php');
 
-// $campos = ['rowid','date_valid'];
-// $consulta = PO\QueryBuilder::factorySelect();
-// $consulta->select($campos);
-// $consulta->from(MAIN_DB_PREFIX . 'facture');
-// $consulta->where('fk_mode_reglement',2,'=');
+$sql = 'SELECT f.rowid, f.ref, fd.description,cfdi.uuid FROM llx_facture f LEFT JOIN llx_facturedet fd ON f.rowid = fd.fk_facture 
+INNER JOIN llx_cfdimx cfdi ON f.rowid = cfdi.fk_facture
+WHERE fd.description LIKE "%Pedimento:%" AND f.ref LIKE "M-%" AND f.rowid BETWEEN  735 AND 2294';
 
-// $resql = $db->query($consulta->toSql());
-// $num = $db->num_rows($resql);
+$result = $db->query($sql);
+$num = $db->num_rows($result);
 
-// $productos = [];
+if ($num > 0) {
 
-// if ($num) {
-//     $i = 0;
-//     while ($i < $num) {
-
-//         $obj = $db->fetch_object($resql);
-
-//                 $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'facture');
-//                 $update->set([
-//                     'date_lim_reglement' => date("d-m-Y",strtotime($obj->date_valid."+ 1 days"))
-
-//                 ])->where('rowid', ':rowid');
-
-//                 $result += $db->query($update->toSql([
-//                     'rowid' => $obj->rowid,
-//                 ]));
-
-//         $i++;
-//     }
-
-// }
-
-//borrar datos tabla product_price
-// $campos = ['rowid'];
-// $consulta = PO\QueryBuilder::factorySelect();
-// $consulta->select($campos);
-// $consulta->from(MAIN_DB_PREFIX . 'product_price');
-// $resql = $db->query($consulta->toSql());
-// $num = $db->num_rows($resql);
-
-// if ($num) {
-//     $i = 0;
-//     while ($i < $num) {
-//         $obj = $db->fetch_object($resql);
-
-//         $sql = "DELETE from " . MAIN_DB_PREFIX . "product_price where rowid =" . $obj->rowid;
-
-//         $result = $db->query($sql);
-//         echo $result.'<br>';
-
-//     }
-// }
-
-$campos = ['rowid', 'cost_price'];
-$consulta = PO\QueryBuilder::factorySelect();
-$consulta->select($campos);
-$consulta->from(MAIN_DB_PREFIX . 'product_temp');
-
-$resql = $db->query($consulta->toSql());
-$num = $db->num_rows($resql);
-
-$consulta = new ConsultasProductos();
-
-if ($num) {
     $i = 0;
     while ($i < $num) {
-        $obj = $db->fetch_object($resql);
+
+       
+        $obj = $db->fetch_object($result);
+        //http: //dhtools.ddns.net/cfdimx/facture.php?facid=723&uuid=d0341693-3916-4789-8479-8ec6cc18706f&action=regen_pdf
+        echo '<a href="http://dhtools.ddns.net/cfdimx/facture.php?facid='.$obj->rowid.'&uuid='.$obj->uuid.'&action=regen_pdf">Regenerar Factura '.$obj->ref.'</a><br>';
+
+        // $update = PO\QueryBuilder::update('llx_facturedet');
+        // // setting values and conditions
+
+        // $update->set(array(
+        //     'description' => $obj->description?$obj->description.' Pedimento:'.$obj->pedimento:'Pedimento:'.$obj->pedimento ,
+        // ))->where('rowid', ':rowid');
+        // echo $update->toSql(array(
+        //     'rowid' => $obj->rowid,
+        // )).';';
+        // echo '<br>';
         
-        // $sql = "UPDATE llx_product set cost_price = ". $obj->cost_price." where ref = '.$obj->ref.'";
-        // $result = $db->query($sql);
-        // echo $result . '<br>';
+        // $result = $db->query($update->toSql(array(
+        //     'rowid' => $obj->rowid,
+        // )));
 
-        $data = [
-            'rowid' => $obj->rowid,
-            'ref' => null  
-        ];
+        // if ($result > 0) {
+        //     echo "actualizado registro " . $i . "<br>";
+        //     $db->commit();
+        //     $i++;
 
-        if ($obj->cost_price == null) {
-            $result = $consulta->insertarMargenes(price2num(0.0), $data);
-
-        } else {
-            $result = $consulta->insertarMargenes(price2num($obj->cost_price), $data);
-
-        }
-        echo $obj->ref . '<br>';
-        echo $obj->cost_price . '<br>';
-
-        echo '<pre>';
-        var_dump($result);
-        echo '</pre>';
-        echo '<br>';
-
+        // } else {
+        //     $db->rollback();
+        //     echo "no se pudo";
+        //     exit;
+        // }
         $i++;
 
     }
+
+    echo "sin registros";
+
 }
-echo 'fin';

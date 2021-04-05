@@ -106,6 +106,9 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
      */
     public function runTrigger($action, $object, User $user, Translate $langs, Conf $conf)
     {
+        echo '<pre>';
+        var_dump($_POST);
+        exit;
         if (empty($conf->vivescloud->enabled)) {
             return 0;
         }
@@ -317,44 +320,76 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 $producto->fetch($object->fk_product);
                 $linea = new CommandeFournisseurLigne($this->db);
                 $linea->fetch($object->id);
+// echo '<pre>';
+                // var_dump($_POST);
+                // exit;
 
                 if ($object->multicurrency_code == "USD") {
 
-                    // $linea->qty = $object->qty;
-                    $linea->price = $producto->cost_price;
-                    $linea->subprice = $producto->cost_price;
+                    $linea->subprice = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price;
+                    $linea->multicurrency_subprice = round($_POST['multicurrency_price_ht'] ? $_POST['multicurrency_price_ht'] : $producto->array_options['options_precio_moneda'], 2);
+                    $linea->multicurrency_total_ht = ($linea->multicurrency_subprice * $object->qty);
+                    $linea->multicurrency_total_tva = (($linea->multicurrency_total_ht * 16) / 100);
+                    $linea->multicurrency_total_ttc = (($linea->multicurrency_subprice * $object->qty) * 1.16);
 
-                    $linea->multicurrency_subprice = $producto->cost_price * $object->multicurrency_tx;
-                    $linea->multicurrency_total_ht = ($producto->cost_price * $object->qty) * $object->multicurrency_tx;
-                    $linea->multicurrency_total_tva = ((($producto->cost_price * $object->qty) * 16) / 100) * $object->multicurrency_tx;
-                    $linea->multicurrency_total_ttc = (($producto->cost_price * $object->qty) * 1.16) * $object->multicurrency_tx;
-                    $linea->total_ht = $producto->cost_price * $object->qty;
-                    $linea->total_tva = (($producto->cost_price * $object->qty) * 16) / 100;
-                    $linea->total_ttc = ($producto->cost_price * $object->qty) * 1.16;
-
-                    $this->db->begin();
-                    $linea->update($user);
-                    $this->db->commit();
+                    $linea->total_ht = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty;
+                    $linea->total_tva = (($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty) * 16) / 100;
+                    $linea->total_ttc = ($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty) * 1.16;
 
                 } else {
 
                     $linea->qty = $object->qty;
-                    $linea->price = $producto->cost_price;
-                    $linea->subprice = $producto->cost_price;
-                    $linea->total_ht = $producto->cost_price * $object->qty;
-                    $linea->total_tva = (($producto->cost_price * $object->qty) * 16) / 100;
-                    $linea->total_ttc = ($producto->cost_price * $object->qty) * 1.16;
 
-                    $this->db->begin();
-                    $linea->update($user);
-                    $this->db->commit();
+                    $linea->subprice = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price;
+                    $linea->total_ht = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty;
+                    $linea->total_tva = (($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty) * 16) / 100;
+                    $linea->total_ttc = ($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price * $object->qty) * 1.16;
+
                 }
 
-                // echo '<pre>';
-                // var_dump($linea);
-                // exit;
+                $linea->ref_supplier = "";
+                $this->db->begin();
+                $linea->update($user);
+                $this->db->commit();
+
                 break;
-            //case 'LINEORDER_SUPPLIER_UPDATE':
+            case 'LINEORDER_SUPPLIER_UPDATE':
+
+                $producto = new Product($this->db);
+                $producto->fetch($object->fk_product);
+                $linea = new CommandeFournisseurLigne($this->db);
+                $linea->fetch($object->id);
+                $linea->qty = $_POST['qty'] ? $_POST['qty'] : $object->qty;
+
+                // echo '<pre>';
+                // var_dump($_POST);
+                // exit;
+                if ($object->multicurrency_code == "USD") {
+
+                    $linea->subprice = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price;
+                    $linea->multicurrency_subprice = round($_POST['multicurrency_subprice'] ? $_POST['multicurrency_subprice'] : $producto->array_options['options_precio_moneda'], 2);
+                    $linea->multicurrency_total_ht = ($linea->multicurrency_subprice * ($_POST['qty']?$_POST['qty']:$object->qty));
+                    $linea->multicurrency_total_tva = (($linea->multicurrency_total_ht * 16) / 100);
+                    $linea->multicurrency_total_ttc = (($linea->multicurrency_subprice * ($_POST['qty']?$_POST['qty']:$object->qty)) * 1.16);
+                    $linea->total_ht = ($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty);
+                    $linea->total_tva = ((($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty)) * 16) / 100;
+                    $linea->total_ttc = (($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty)) * 1.16;
+
+                } else {
+
+                    $linea->subprice = $_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price;
+                    $linea->total_ht = ($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty);
+                    $linea->total_tva = ((($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty)) * 16) / 100;
+                    $linea->total_ttc = (($_POST['price_ht'] ? $_POST['price_ht'] : $producto->cost_price) * ($_POST['qty'] ? $_POST['qty'] : $object->qty)) * 1.16;
+
+                }
+
+                $linea->ref_supplier = "";
+                $this->db->begin();
+                $linea->update($user);
+                $this->db->commit();
+
+                break;
             //case 'LINEORDER_SUPPLIER_DELETE':
 
             // Proposals
@@ -400,29 +435,89 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
             // Bills
             case 'BILL_CREATE':
 
-                $cliente = new Societe($this->db);
-                $cliente->fetch($object->socid);
+                if ($object->type == 0) {
+                    $cliente = new Societe($this->db);
+                    $cliente->fetch($object->socid);
+                    if ($cliente->nom == "CLIENTE MOSTRADOR") {
+                        return;
+                    }
+                    $factura = new Facture($this->db);
+                    $factura->fetch($object->id);
+                    $sql = "SELECT rowid,nbjour from llx_c_payment_term where rowid = " . $cliente->array_options["options_credito"];
+                    $result = $this->db->query($sql);
+                    $num = $this->db->num_rows($result);
 
-                $limite = $cliente->outstanding_limit;
+                    if ($num > 0) {
+                        $obj = $this->db->fetch_object($result);
+                        $factura->date_lim_reglement = $factura->calculate_date_lim_reglement($obj->rowid);
 
-                if ($limite == 0) {
-                    return;
-                }
-                $numero = $object->fetchObjectLinked($object->id);
+                    }
+                    if ($object->mode_reglement_id == 53) {
+                        $factura->array_options["options_formpagcfdi"] = "PPD";
+                    } else {
+                        $factura->array_options["options_formpagcfdi"] = "PUE";
+                        return;
+                    }
 
-                if (!$object->linked_objects["commande"]) {
+                    $factura->update($user);
 
-                    $debe = $cliente->getOutstandingBills();
+                    $sql = "UPDATE " . MAIN_DB_PREFIX . "facture set fk_cond_reglement = " . $cliente->array_options["options_credito"] . " WHERE rowid = " . $object->id;
+                    $result = $this->db->query($sql);
 
-                    if ($debe["opened"] > $limite) {
-                        if (!$user->rights->vivescloud->permitirfactura->write && !$user->rights->vivescloud->permitirfactura->read) {
-                            echo '<script>window . location . replace("/comm/card.php?socid=' . $object->socid . '");</script>';
-                            exit;
+                    $fields = ['date_lim_reglement'];
+                    $select = new PO\QueryBuilder\Statements\Select();
+                    $select->select($fields);
+                    $select->from(MAIN_DB_PREFIX . 'facture');
+                    $select->where('fk_soc', $object->socid, '=');
+                    $select->where('paye', 0, '=');
+                    $select->where('type', 0, '=');
+                    $select->where('fk_statut', 3, '<>');
+                    $select->where('fk_statut', 0, '<>');
+                    $select->orderBy('rowid ASC');
+
+                    $result = $this->db->query($select->toSql());
+                    $num = $this->db->num_rows($result);
+
+                    if ($num > 0) {
+                        $i = 0;
+                        while ($i < $num) {
+
+                            $obj = $this->db->fetch_object($result);
+
+                            $fechaFactura = new DateTime($obj->date_lim_reglement);
+
+                            $fechaHoy = new DateTime(date('Y-m-d', dol_now()));
+
+                            if ($fechaHoy > $fechaFactura) {
+                                setEventMessages($cliente->error, "Supera Número de Días de Crédito", "errors");
+                            }
+
+                            $i++;
+
+                        }
+                    }
+                    $limite = $cliente->outstanding_limit;
+
+                    if ($limite == 0) {
+                        return;
+                    }
+
+                    if (!$object->linked_objects["commande"]) {
+
+                        $debe = $cliente->getOutstandingBills();
+
+                        if ($debe["opened"] > $limite) {
+                            if (!$user->rights->vivescloud->permitirfactura->write && !$user->rights->vivescloud->permitirfactura->read) {
+                                setEventMessages($cliente->error, "Supera Límite de Crédito", "errors");
+
+                                echo '<script>window . location . replace("/comm/card.php?socid=' . $object->socid . '");</script>';
+                                exit;
+
+                            }
 
                         }
 
                     }
-
                 }
 
                 break;
@@ -431,69 +526,115 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 if (!$user->rights->vivescloud->modificarfactura->write) {
                     echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");</script>';
                     exit;
-
                 }
 
                 break;
             case 'BILL_VALIDATE':
 
-                // echo '<pre>';
-                // var_dump($object);
-                // exit;
-
                 //sacar productos de product_batch
                 $almacen = GETPOST('idwarehouse', 'int');
+                $sql = "UPDATE llx_facture_extrafields  SET almacen = " . $almacen . " where fk_object = " . $object->id;
+                $this->db->query($sql);
 
                 if ($object->type == 0) {
+
+                    $factura = new Facture($this->db);
+                    $factura->fetch($object->id);
+                    $cliente = new Societe($this->db);
+                    $cliente->fetch($factura->socid);
+
+                    $sql = "SELECT rowid,nbjour from llx_c_payment_term where rowid = " . $cliente->array_options["options_credito"];
+                    $result = $this->db->query($sql);
+                    $num = $this->db->num_rows($result);
+                    $diasCredito = 0;
+                    if ($num > 0) {
+                        $obj = $this->db->fetch_object($result);
+                        $diasCredito = $obj->nbjour;
+                        $factura->date_lim_reglement = $factura->calculate_date_lim_reglement($obj->rowid);
+
+                    }
+                    if ($object->mode_reglement_id == 53) {
+                        $factura->array_options["options_formpagcfdi"] = "PPD";
+
+                        $fields = ['date_lim_reglement'];
+                        $select = new PO\QueryBuilder\Statements\Select();
+                        $select->select($fields);
+                        $select->from(MAIN_DB_PREFIX . 'facture');
+                        $select->where('fk_soc', $object->socid, '=');
+                        $select->where('paye', 0, '=');
+                        $select->where('type', 0, '=');
+                        $select->where('fk_statut', 3, '<>');
+                        $select->where('fk_statut', 0, '<>');
+                        $select->orderBy('rowid ASC');
+
+                        $result = $this->db->query($select->toSql());
+                        $num = $this->db->num_rows($result);
+
+                        if ($num > 0) {
+                            $i = 0;
+                            while ($i < $num) {
+
+                                $obj = $this->db->fetch_object($result);
+
+                                $fechaFactura = new DateTime($obj->date_lim_reglement);
+                                //$NewDate= Date('$day', strtotime("+7 days"));
+
+                                $fechaLimite = date('Y-m-d', strtotime($obj->date_lim_reglement . "+5 days"));
+                                
+                                $fechaLimite = new DateTime($fechaLimite);
+
+                                $fechaHoy = new DateTime(date('Y-m-d', dol_now()));
+
+                                if ($fechaHoy > $fechaLimite) {
+
+                                    if (!$user->rights->vivescloud->permitirfactura->write && !$user->rights->vivescloud->permitirfactura->read) {
+
+                                    setEventMessages($cliente->error, "Supera Número de Días de Crédito", "errors");
+                                    echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");</script>';
+                                    exit;
+
+                                    }
+                                }
+
+                                $i++;
+
+                            }
+                        }
+                    } else {
+
+                        $factura->array_options["options_formpagcfdi"] = "PUE";
+
+                    }
+                    $factura->update($user);
+
+                    $sql = "UPDATE " . MAIN_DB_PREFIX . "facture set fk_cond_reglement = " . $cliente->array_options["options_credito"] . " WHERE rowid = " . $object->id;
+                    $result = $this->db->query($sql);
+
                     $lineas = count($object->lines);
+                    $producto = new Product($this->db);
+
                     for ($i = 0; $i < $lineas; $i++) {
 
-                        if ($object->lines[$i]->array_options["options_pedimento"] != null) {
-                            $producto = new Product($this->db);
+                        if ($object->lines[$i]->array_options["options_pedimento"] != null && $object->lines[$i]->array_options["options_pedimento"] != 'Seleccione Pedimento') {
+
                             $producto->fetch($object->lines[$i]->fk_product);
                             if ($producto->array_options["options_batch"] == 1) {
 
                                 $qty = $object->lines[$i]->qty;
+                                $consulta = $this->consultarPedimento($object->lines[$i]->array_options['options_pedimento'], $almacen, $object->lines[$i]->fk_product);
+                                $datosActualiza = [
+                                    'qty' => $consulta->qty - $object->lines[$i]->qty,
+                                ];
+                                $result = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
 
-                                $fields = array('pb.rowid AS idbatch', 'pb.qty');
-                                $select = new PO\QueryBuilder\Statements\Select();
-                                $select->select($fields);
-                                $select->from('llx_product AS p');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_stock AS ps', 'p.rowid = ps.fk_product');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_lot AS pl', 'p.rowid = pl.fk_product');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_batch AS pb', 'p.rowid = pl.fk_product');
-                                $select->where('p.rowid', $object->lines[$i]->fk_product, '=');
-                                $select->where('ps.fk_entrepot', $almacen, '=');
-                                $select->where('pb.batch', $object->lines[$i]->array_options['options_pedimento'], '=');
-                                $select->groupBy('idbatch');
-
-                                // echo $select->toSql();
-                                // exit;
-                                $resql = $this->db->query($select->toSql());
-                                $num = $this->db->num_rows($resql);
-                                $j = 0;
-
-                                while ($j < $num) {
-                                    $obj = $this->db->fetch_object($resql);
-                                    if ($obj) {
-                                        if ($qty <= $obj->qty) {
-
-                                            $resto = $obj->qty - $qty;
-                                            $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'product_batch');
-                                            $update->set(['qty' => $resto])->where('rowid', ':idbatch');
-                                            $resultado = $this->db->query($update->toSql(['idbatch' => $obj->idbatch]));
-                                        }
-                                    }
-                                    $j++;
-
-                                }
                             }
 
                         } else {
 
-                            $producto = new Product($this->db);
                             $producto->fetch($object->lines[$i]->fk_product);
                             if ($producto->array_options["options_batch"] == 1) {
+
+                                setEventMessages($object->error, 'Error en el Pedimento ' . $object->lines[$i]->ref, 'errors');
 
                                 echo '<script>window . location . replace("/compta/facture/card.php?facid=' . $object->id . '");</script>';
                                 exit;
@@ -671,57 +812,72 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 break;
             //case 'BILL_SENTBYMAIL':
             case 'BILL_CANCEL':
-                $almacen = GETPOST('idwarehouse', 'int');
+
+                $product = new Product($this->db);
+
+                $almacen = $object->array_options["options_almacen"];
+
                 if ($object->type == 0) {
+
+                    if ($almacen == null || $almacen == 0) {
+                        setEventMessages($object->error, 'Los Productos deben retornar a almacén de forma manual', 'errors');
+                        break;
+                    }
+
                     $lineas = count($object->lines);
                     for ($i = 0; $i < $lineas; $i++) {
 
                         if ($object->lines[$i]->array_options["options_pedimento"] != null) {
-                            $producto = new Product($this->db);
-                            $producto->fetch($object->lines[$i]->fk_product);
-                            if ($producto->array_options["options_batch"] == 1) {
 
-                                $qty = $object->lines[$i]->qty;
+                            $product->fetch($object->lines[$i]->fk_product);
+                            if ($product->array_options["options_batch"] == 1) {
+                                $consulta = $this->consultarPedimento($object->lines[$i]->array_options['options_pedimento'], $almacen, $object->lines[$i]->fk_product);
+                                $now = dol_now();
 
-                                $fields = array('pb.rowid AS idbatch', 'pb.qty');
-                                $select = new PO\QueryBuilder\Statements\Select();
-                                $select->select($fields);
-                                $select->from('llx_product AS p');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_stock AS ps', 'p.rowid = ps.fk_product');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_lot AS pl', 'p.rowid = pl.fk_product');
-                                $select->innerJoin(MAIN_DB_PREFIX . 'product_batch AS pb', 'p.rowid = pl.fk_product');
-                                $select->where('p.rowid', $object->lines[$i]->fk_product, '=');
-                                $select->where('ps.fk_entrepot', $almacen, '=');
-                                $select->where('pb.batch', $object->lines[$i]->array_options['options_pedimento'], '=');
-                                $select->groupBy('idbatch');
+                                $result = $product->correct_stock_batch(
+                                    $user,
+                                    $almacen,
+                                    $object->lines[$i]->qty,
+                                    0,
+                                    'Cancelacion de Factura  ' . $object->ref . ' Producto :' . $product->ref,
+                                    0,
+                                    null,
+                                    null,
+                                    null,
+                                    $now . ' - ' . $product->ref,
+                                    $origin_element = 'facture',
+                                    $origin_id = $object->id
+                                ); // We do not change value of stock for a correction
+                                $datosActualiza = [
+                                    'qty' => $consulta->qty + $object->lines[$i]->qty,
+                                ];
+                                $result = $this->actualizarTabla('product_batch', $consulta->idbatch, $datosActualiza);
 
-                                // echo $select->toSql();
-                                // exit;
-                                $resql = $this->db->query($select->toSql());
-                                $num = $this->db->num_rows($resql);
-                                $j = 0;
-
-                                while ($j < $num) {
-                                    $obj = $this->db->fetch_object($resql);
-                                    if ($obj) {
-                                        if ($qty <= $obj->qty) {
-
-                                            $suma = $obj->qty + $qty;
-                                            $update = PO\QueryBuilder::update(MAIN_DB_PREFIX . 'product_batch');
-                                            $update->set(['qty' => $suma])->where('rowid', ':idbatch');
-                                            $resultado = $this->db->query($update->toSql(['idbatch' => $obj->idbatch]));
-
-                                            // echo $resultado;
-                                            // exit;
-
-                                            //guardarlo en un registro
-                                        }
-                                    }
-                                    $j++;
-
-                                }
                             }
 
+                        } else {
+                            $product->fetch(null, $object->lines[$i]->ref);
+                            // echo '<pre>';
+                            // var_dump($product);
+                            // echo '</pre>';
+                            // exit;
+
+                            $now = dol_now();
+
+                            $result = $product->correct_stock_batch(
+                                $user,
+                                $almacen,
+                                $object->lines[$i]->qty,
+                                0,
+                                'Cancelacion de Factura  ' . $object->ref . ' Producto :' . $product->ref,
+                                0,
+                                null,
+                                null,
+                                null,
+                                $now . ' - ' . $product->ref,
+                                $origin_element = 'facture',
+                                $origin_id = $object->id
+                            ); // We do not change value of stock for a correction
                         }
 
                     }
@@ -730,7 +886,14 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                 break;
             //case 'BILL_DELETE':
             //case 'BILL_PAYED':
+
             case 'LINEBILL_INSERT':
+
+                if ($object->desc != null) {
+
+                    $posicion = explode(",", $object->desc);
+
+                }
 
                 if ($object->fk_product == null) {
                     $campos = ['rowid'];
@@ -749,10 +912,23 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
                         $linea = new FactureLigne($this->db);
                         $linea->fetch($object->id);
 
+                        if ($posicion[1]) {
+                            $linea->array_options['options_numposicionzf'] = $posicion[1];
+                            if ($posicion[0] == "Pos") {
+                                $linea->desc = $posicion[0] . ': ' . $posicion[1] . ' ' . $posicion[2] . ': ' . $posicion[3];
+                            }
+
+                        }
+
                         $linea->array_options['options_umed'] = $producto->array_options['options_umed'];
                         $linea->array_options['options_claveprodserv'] = $producto->array_options['options_claveprodserv'];
                         $linea->array_options['options_sat'] = 'umed: ' . $producto->array_options['options_umed'] . ' ClaveProdServ: ' . $producto->array_options['options_claveprodserv'];
-                        $linea->array_options['options_pedimento'] = $object->array_options['options_pedimento'];
+                        if ($object->array_options['options_pedimento'] != null) {
+                            $linea->array_options['options_pedimento'] = $object->array_options['options_pedimento'];
+                            $desc = $linea->desc . " Pedimento: " . $linea->array_options['options_pedimento'];
+                            $linea->desc = $desc;
+                            $linea->array_options['options_pedimento'] = $object->array_options['options_pedimento'];
+                        }
 
                         $this->db->begin();
                         $linea->update($user);
@@ -767,118 +943,410 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
 
                     $linea = new FactureLigne($this->db);
                     $linea->fetch($object->id);
+
+                    if ($posicion[1]) {
+                        $linea->array_options['options_numposicionzf'] = $posicion[1];
+                        if ($posicion[0] == "Pos") {
+                            $linea->desc = $posicion[0] . ': ' . $posicion[1] . ' ' . $posicion[2] . ': ' . $posicion[3];
+                        }
+
+                    }
+
+                    $linea->array_options['options_umed'] = $producto->array_options['options_umed'];
+                    $linea->array_options['options_claveprodserv'] = $producto->array_options['options_claveprodserv'];
                     $linea->array_options['options_sat'] = 'umed: ' . $producto->array_options['options_umed'] . ' ClaveProdServ: ' . $producto->array_options['options_claveprodserv'];
 
                     if ($object->array_options['options_pedimento'] != null) {
                         $linea->array_options['options_pedimento'] = $object->array_options['options_pedimento'];
+                        $desc = $linea->desc . " Pedimento: " . $linea->array_options['options_pedimento'];
+                        $linea->desc = $desc;
+                        $linea->array_options['options_pedimento'] = $object->array_options['options_pedimento'];
                     }
 
                     $this->db->begin();
-                    $linea->update($user);
+                    $result = $linea->update($user);
                     $this->db->commit();
+
                 }
 
                 break;
             // case 'LINEBILL_UPDATE':
+              
+            //     break;
             //case 'LINEBILL_DELETE':
 
             //Supplier Bill
             //case 'BILL_SUPPLIER_CREATE':
-            //case 'BILL_SUPPLIER_UPDATE':
+            // case 'BILL_SUPPLIER_UPDATE':
+            //     exit;
+            //     $invoice = new FactureFournisseur($this->db);
+            //     $invoice->fetch($object->id);
+            //     echo '<pre>';
+            //     var_dump($invoice);
+            //     echo '</pre>';
+            //     exit;
+            //     break;
+
             //case 'BILL_SUPPLIER_DELETE':
             //case 'BILL_SUPPLIER_PAYED':
             //case 'BILL_SUPPLIER_UNPAYED':
             case 'BILL_SUPPLIER_VALIDATE':
                 $batch = $object->array_options['options_provpedimento'];
 
-                // echo '<pre>';
-                // var_dump($object);
-                // exit;
+                if ($object->type == 0) {
 
-                if ($batch != null) {
-
-                    $lineas = count($object->lines);
-
-                    for ($i = 0; $i < $lineas; $i++) {
-
-                        $producto = new Product($this->db);
-                        $producto->fetch($object->lines[$i]->fk_product);
-
-                        if ($producto->array_options["options_batch"] == 0 || $producto->array_options["options_batch"] == null) {
-                            header('Location: /fourn/facture/card.php?id=' . $object->id);
-                        }
-                    }
-
-                    $almacen = GETPOST('idwarehouse', 'int');
-
-                    $campos = ['batch'];
-                    $select = new PO\QueryBuilder\Statements\Select();
-                    $select->select($campos);
-                    $select->from(MAIN_DB_PREFIX . 'product_batch');
-                    $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock =' . MAIN_DB_PREFIX . 'product_stock.rowid');
-                    $select->where(MAIN_DB_PREFIX . 'product_batch.batch', $batch, '=');
-                    $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
-                    $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
-
-                    $result = $this->db->query($select->toSql());
-                    $num = $this->db->num_rows($result);
-
-                    if ($numm == 0) {
+                    if ($batch != null) {
 
                         $lineas = count($object->lines);
 
                         for ($i = 0; $i < $lineas; $i++) {
 
-                            $campo = ['rowid'];
-                            $consulta = new PO\QueryBuilder\Statements\Select();
-                            $consulta->select($campo);
-                            $consulta->from(MAIN_DB_PREFIX . 'product_stock');
-                            $consulta->where('fk_product', $object->lines[$i]->fk_product, '=');
-                            $consulta->where('fk_entrepot', $almacen, '=');
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
 
-                            $rslt = $this->db->query($consulta->toSql());
-                            $numfor = $this->db->num_rows($rslt);
-
-                            if ($numfor > 0) {
-                                $obj = $this->db->fetch_object($rslt);
-
-                                // Using the factory
-                                $insert = PO\QueryBuilder::insert();
-                                $insert->into(MAIN_DB_PREFIX . 'product_batch')->values(array(
-                                    'fk_product_stock' => $obj->rowid,
-                                    'batch' => $batch,
-                                    'qty' => $object->lines[$i]->qty,
-                                ));
-
-                                $result = $this->db->query($insert->toSql());
-                                $this->db->commit();
-
+                            if ($producto->array_options["options_batch"] == 0 || $producto->array_options["options_batch"] == null) {
+                                setEventMessages($object->error, 'El producto ' . $object->lines[$i]->ref . ' está marcado "SIN PEDIMENTO" favor de corregir', 'errors');
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
                             }
 
+                            $almacen = GETPOST('idwarehouse', 'int');
+
+                            $campos = ['batch'];
+                            $select = new PO\QueryBuilder\Statements\Select();
+                            $select->select($campos);
+                            $select->from(MAIN_DB_PREFIX . 'product_batch');
+                            $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock =' . MAIN_DB_PREFIX . 'product_stock.rowid');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.batch', $batch, '=');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
+                            $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
+
+                            $result = $this->db->query($select->toSql());
+                            $num = $this->db->num_rows($result);
+
+                            if ($num == 0) {
+
+                                $lineas = count($object->lines);
+
+                                for ($i = 0; $i < $lineas; $i++) {
+
+                                    $campo = ['rowid'];
+                                    $consulta = new PO\QueryBuilder\Statements\Select();
+                                    $consulta->select($campo);
+                                    $consulta->from(MAIN_DB_PREFIX . 'product_stock');
+                                    $consulta->where('fk_product', $object->lines[$i]->fk_product, '=');
+                                    $consulta->where('fk_entrepot', $almacen, '=');
+
+                                    $rslt = $this->db->query($consulta->toSql());
+                                    $numfor = $this->db->num_rows($rslt);
+
+                                    if ($numfor > 0) {
+                                        $obj = $this->db->fetch_object($rslt);
+
+                                        // Using the factory
+                                        $insert = PO\QueryBuilder::insert();
+                                        $insert->into(MAIN_DB_PREFIX . 'product_batch')->values(array(
+                                            'fk_product_stock' => $obj->rowid,
+                                            'batch' => $batch,
+                                            'qty' => $object->lines[$i]->qty,
+                                        ));
+
+                                        $result = $this->db->query($insert->toSql());
+                                        $this->db->commit();
+
+                                    }
+
+                                }
+                            }
+                        }
+                    } else {
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 1) {
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
                         }
 
                     }
-                } else {
-                    $lineas = count($object->lines);
+                }
+                if ($object->type == 2) {
 
-                    for ($i = 0; $i < $lineas; $i++) {
-                        $producto = new Product($this->db);
-                        $producto->fetch($object->lines[$i]->fk_product);
+                    if ($batch != null) {
 
-                        if ($producto->array_options["options_batch"] == 1) {
-                            header('Location: /fourn/facture/card.php?id=' . $object->id);
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 0 || $producto->array_options["options_batch"] == null) {
+                                setEventMessages($object->error, 'El producto ' . $object->lines[$i]->ref . ' está marcado "SIN PEDIMENTO" favor de corregir', 'errors');
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+
+                            $almacen = GETPOST('idwarehouse', 'int');
+
+                            $campos = ['batch'];
+                            $select = new PO\QueryBuilder\Statements\Select();
+                            $select->select($campos);
+                            $select->from(MAIN_DB_PREFIX . 'product_batch');
+                            $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock =' . MAIN_DB_PREFIX . 'product_stock.rowid');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.batch', $batch, '=');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
+                            $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
+
+                            $result = $this->db->query($select->toSql());
+                            $num = $this->db->num_rows($result);
+
+                            if ($num > 0) {
+
+                                $lineas = count($object->lines);
+
+                                for ($i = 0; $i < $lineas; $i++) {
+
+                                    $campo = ['rowid'];
+                                    $consulta = new PO\QueryBuilder\Statements\Select();
+                                    $consulta->select($campo);
+                                    $consulta->from(MAIN_DB_PREFIX . 'product_stock');
+                                    $consulta->where('fk_product', $object->lines[$i]->fk_product, '=');
+                                    $consulta->where('fk_entrepot', $almacen, '=');
+
+                                    $rslt = $this->db->query($consulta->toSql());
+                                    $numfor = $this->db->num_rows($rslt);
+
+                                    if ($numfor > 0) {
+                                        $obj = $this->db->fetch_object($rslt);
+
+                                        $consultaPedimento = $this->consultarPedimento($batch, $almacen, $object->lines[$i]->fk_product);
+
+                                        $datosActualiza = [
+                                            'qty' => $consultaPedimento->qty - $object->lines[$i]->qty,
+                                        ];
+                                        $result = $this->actualizarTabla('product_batch', $consultaPedimento->idbatch, $datosActualiza);
+
+                                        $this->db->commit();
+
+                                    }
+
+                                }
+                            }
                         }
+                    } else {
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 1) {
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+                        }
+
                     }
 
                 }
 
                 break;
 
-            //case 'BILL_SUPPLIER_UNVALIDATE':
-            //case 'LINEBILL_SUPPLIER_CREATE':
-            //case 'LINEBILL_SUPPLIER_UPDATE':
-            //case 'LINEBILL_SUPPLIER_DELETE':
+            case 'BILL_SUPPLIER_UNVALIDATE':
 
+                $batch = $object->array_options['options_provpedimento'];
+
+                if ($object->type == 0) {
+                    if ($batch != null) {
+
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 0 || $producto->array_options["options_batch"] == null) {
+                                setEventMessages($object->error, 'El producto ' . $object->lines[$i]->ref . ' está marcado "SIN PEDIMENTO" favor de corregir', 'errors');
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+
+                            $almacen = GETPOST('idwarehouse', 'int');
+
+                            $campos = ['batch'];
+                            $select = new PO\QueryBuilder\Statements\Select();
+                            $select->select($campos);
+                            $select->from(MAIN_DB_PREFIX . 'product_batch');
+                            $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock =' . MAIN_DB_PREFIX . 'product_stock.rowid');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.batch', $batch, '=');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
+                            $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
+
+                            $result = $this->db->query($select->toSql());
+                            $num = $this->db->num_rows($result);
+
+                            if ($num > 0) {
+
+                                $lineas = count($object->lines);
+
+                                for ($i = 0; $i < $lineas; $i++) {
+
+                                    $campo = ['rowid'];
+                                    $consulta = new PO\QueryBuilder\Statements\Select();
+                                    $consulta->select($campo);
+                                    $consulta->from(MAIN_DB_PREFIX . 'product_stock');
+                                    $consulta->where('fk_product', $object->lines[$i]->fk_product, '=');
+                                    $consulta->where('fk_entrepot', $almacen, '=');
+
+                                    $rslt = $this->db->query($consulta->toSql());
+                                    $numfor = $this->db->num_rows($rslt);
+
+                                    if ($numfor > 0) {
+                                        $obj = $this->db->fetch_object($rslt);
+
+                                        $consultaPedimento = $this->consultarPedimento($batch, $almacen, $object->lines[$i]->fk_product);
+
+                                        $datosActualiza = [
+                                            'qty' => $consultaPedimento->qty - $object->lines[$i]->qty,
+                                        ];
+                                        $result = $this->actualizarTabla('product_batch', $consultaPedimento->idbatch, $datosActualiza);
+
+                                        $this->db->commit();
+
+                                    }
+
+                                }
+                            }
+                        }
+                    } else {
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 1) {
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+                        }
+
+                    }
+
+                }
+                if ($object->type == 2) {
+                    if ($batch != null) {
+
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 0 || $producto->array_options["options_batch"] == null) {
+                                setEventMessages($object->error, 'El producto ' . $object->lines[$i]->ref . ' está marcado "SIN PEDIMENTO" favor de corregir', 'errors');
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+
+                            $almacen = GETPOST('idwarehouse', 'int');
+
+                            $campos = ['batch'];
+                            $select = new PO\QueryBuilder\Statements\Select();
+                            $select->select($campos);
+                            $select->from(MAIN_DB_PREFIX . 'product_batch');
+                            $select->innerJoin(MAIN_DB_PREFIX . 'product_stock', MAIN_DB_PREFIX . 'product_batch.fk_product_stock =' . MAIN_DB_PREFIX . 'product_stock.rowid');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.batch', $batch, '=');
+                            $select->where(MAIN_DB_PREFIX . 'product_batch.qty', 0, '>');
+                            $select->where(MAIN_DB_PREFIX . 'product_stock.fk_entrepot', $almacen, '=');
+
+                            $result = $this->db->query($select->toSql());
+                            $num = $this->db->num_rows($result);
+
+                            if ($num > 0) {
+
+                                $lineas = count($object->lines);
+
+                                for ($i = 0; $i < $lineas; $i++) {
+
+                                    $campo = ['rowid'];
+                                    $consulta = new PO\QueryBuilder\Statements\Select();
+                                    $consulta->select($campo);
+                                    $consulta->from(MAIN_DB_PREFIX . 'product_stock');
+                                    $consulta->where('fk_product', $object->lines[$i]->fk_product, '=');
+                                    $consulta->where('fk_entrepot', $almacen, '=');
+
+                                    $rslt = $this->db->query($consulta->toSql());
+                                    $numfor = $this->db->num_rows($rslt);
+
+                                    if ($numfor > 0) {
+                                        $obj = $this->db->fetch_object($rslt);
+
+                                        $consultaPedimento = $this->consultarPedimento($batch, $almacen, $object->lines[$i]->fk_product);
+
+                                        $datosActualiza = [
+                                            'qty' => $consultaPedimento->qty + $object->lines[$i]->qty,
+                                        ];
+                                        $result = $this->actualizarTabla('product_batch', $consultaPedimento->idbatch, $datosActualiza);
+
+                                        $this->db->commit();
+
+                                    }
+
+                                }
+                            }
+                        }
+                    } else {
+                        $lineas = count($object->lines);
+
+                        for ($i = 0; $i < $lineas; $i++) {
+                            $producto = new Product($this->db);
+                            $producto->fetch($object->lines[$i]->fk_product);
+
+                            if ($producto->array_options["options_batch"] == 1) {
+                                header('Location: /fourn/facture/card.php?id=' . $object->id);
+                            }
+                        }
+
+                    }
+
+                }
+
+            // case 'LINEBILL_SUPPLIER_CREATE':
+            // case 'LINEBILL_SUPPLIER_UPDATE':
+            //case 'LINEBILL_SUPPLIER_DELETE':
+            case 'BILL_SUPPLIER_MODIFY':
+
+                if ($object->array_options['options_tipo_cambio'] != null || $object->array_options['options_tipo_cambio'] != 0) {
+
+                    $tipo_cambio = 1 / $object->array_options['options_tipo_cambio'];
+
+                    $invoice = new FactureFournisseur($this->db);
+                    $invoice->fetch($object->id);
+                    $invoice->setMulticurrencyRate(price2num($tipo_cambio));
+                    if ($object->multicurrency_code == "USD") {
+                        /*
+                        multicurrency_total_ht
+                        multicurrency_total_tva
+                        multicurrency_total_ttc
+
+                        total_ht
+                        total_ttc
+                        total_tva
+                         */
+                        $invoice->total_ht = round($object->multicurrency_total_ht * $object->array_options['options_tipo_cambio'], 2);
+                        $invoice->total_ttc = round($object->multicurrency_total_ttc * $object->array_options['options_tipo_cambio'], 2);
+                        $invoice->total_tva = round($object->multicurrency_total_tva * $object->array_options['options_tipo_cambio'], 2);
+                    }
+                    $this->db->begin();
+                    $result = $invoice->update($user);
+                    $this->db->commit();
+
+                }
+
+                break;
+
+            
             // Payments
             //case 'PAYMENT_CUSTOMER_CREATE':
             //case 'PAYMENT_SUPPLIER_CREATE':
@@ -959,7 +1427,7 @@ class InterfaceVivescloudTriggers extends DolibarrTriggers
             //case 'SHIPPING_DELETE':
 
             // and more...
-
+            
             default:
                 dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ". id=" . $object->id);
                 break;

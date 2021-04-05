@@ -110,7 +110,9 @@ class modVivescloud extends DolibarrModules
             // Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
             'hooks' => array(
                    'data' => array(
+                       'thirdpartycomm',
                        'invoicecard',
+                       'invoicesuppliercard',
                        'ordersuppliercard',
                        'ordersupplierdispatch',
                        'stockproductcard',
@@ -162,7 +164,8 @@ class modVivescloud extends DolibarrModules
         // Array to add new pages in new tabs
         $this->tabs = array();
         // Example:
-        // $this->tabs[] = array('data'=>'objecttype:+tabname1:Title1:mylangfile@vivescloud:$user->rights->vivescloud->read:/vivescloud/mynewtab1.php?id=__ID__');                      // To add a new tab identified by code tabname1
+        // $this->tabs[] = array('data'=>'order_supplier:+tabbackorder:BackOrder:@hwtitle:/vivescloud/mynewtab1.php?id=__ID__');                      // To add a new tab identified by code tabname1
+        //'invoice:+tabfactclient:CFDI:@hwtitle:true:/cfdimx/facture.php?facid=__ID__',
         // $this->tabs[] = array('data'=>'objecttype:+tabname2:SUBSTITUTION_Title2:mylangfile@vivescloud:$user->rights->othermodule->read:/vivescloud/mynewtab2.php?id=__ID__',      // To add another new tab identified by code tabname2. Label will be result of calling all substitution functions on 'Title2' key.
         // $this->tabs[] = array('data'=>'objecttype:-tabname:NU:conditiontoremove');                                                                                             // To remove an existing tab identified by code tabname
         //
@@ -216,11 +219,11 @@ class modVivescloud extends DolibarrModules
         // Boxes/Widgets
         // Add here list of php file(s) stored in vivescloud/core/boxes that contains a class to show a widget.
         $this->boxes = array(
-            //  0 => array(
-            //      'file' => 'vivescloudwidget1.php@vivescloud',
-            //      'note' => 'Widget provided by Vivescloud',
-            //      'enabledbydefaulton' => 'Home',
-            //  ),
+             0 => array(
+                 'file' => 'vivescloudwidget1.php@vivescloud',
+                 'note' => 'Widget provided by Vivescloud',
+                 'enabledbydefaulton' => 'Home',
+             ),
             //  ...
         );
 

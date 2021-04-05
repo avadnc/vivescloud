@@ -107,7 +107,7 @@ class vivescloudwidget1 extends ModeleBoxes
 	 */
 	public function loadBox($max = 5)
 	{
-		global $langs;
+		global $langs, $user;
 
 		// Use configuration value for max lines count
 		$this->max = $max;
@@ -134,7 +134,6 @@ class vivescloudwidget1 extends ModeleBoxes
 			// Adds translated " (Graph)" to a hidden form value's input (?)
 			'graph' => false
 		);
-
 		// Populate the contents at runtime
 		$this->info_box_contents = array(
 			0 => array( // First line
@@ -143,7 +142,6 @@ class vivescloudwidget1 extends ModeleBoxes
 					'tr' => 'class="left"',
 					// HTML properties of the TD element
 					'td' => '',
-
 					// Main text for content of cell
 					'text' => 'First cell of first line',
 					// Link on 'text' and 'logo' elements

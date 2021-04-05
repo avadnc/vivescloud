@@ -142,6 +142,10 @@ function cargarTabla(url) {
   tabla.destroy();
   tabla = $("#tabla").DataTable({
     keys: true,
+     dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ],
     ajax: {
       dataType: "json",
       url: url,
@@ -458,40 +462,7 @@ $(document).on("change", ".moneda", function () {
   let element = $(this)[0];
   moneda =  $("input[name*='divisa']").attr('tipodivisa');
   console.log(moneda);
-
-  // moneda = $(element).val();
-
-  // if (moneda == "MXN") {
-  //   $.ajax({
-  //     url: "ajax/actualizaMoneda.php?cargarhistorico=dolar",
-  //     // data: { cargarhistorico: "dolar" },
-  //     type: "GET",
-  //     success: function (data) {
-  //       data = JSON.parse(data);
-  //       var i;
-  //       for (i = 4; i < 7; i++) {
-  //         $(element)
-  //           .parent()
-  //           .parent()
-  //           .find("td:eq(" + i + ")")
-  //           .removeAttr("style");
-  //         precio = $(element)
-  //           .parent()
-  //           .parent()
-  //           .find("td:eq(" + i + ")")
-  //           .text();
-  //         precio = precio.substr(1);
-  //         precio = parseFloat(precio.replace(",", ""));
-  //         resultado = precio * data.label;
-  //         $(element)
-  //           .parent()
-  //           .parent()
-  //           .find("td:eq(" + i + ")")
-  //           .html("<p>$" + numberWithCommas(resultado.toFixed(2)) + "</p>");
-  //       }
-  //     },
-  //   });
-  // }
+  
   if (moneda == "USD") {
     $.ajax({
       url: "ajax/actualizaMoneda.php?cargarhistorico=dolar",

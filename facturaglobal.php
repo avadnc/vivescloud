@@ -228,13 +228,13 @@ if ($action == 'validate') {
             $producto->fetch($line->fk_product);
             //    echo $line->subprice;
             $result = $factura->addline(
-                $producto->label,
+                $producto->ref,
                 $line->subprice, // subprice
                 $line->qty, // quantity
                 $line->tva_tx, // vat rate
                 $line->localtax1_tx, // localtax1_tx
                 $line->localtax2_tx, // localtax2_tx
-                null, // fk_product
+                $producto->id, // fk_product
                 0, // remise_percent
                 0, // date_start
                 0, // date_end

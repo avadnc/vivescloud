@@ -64,14 +64,16 @@ class ConsultaStockProductos
 
             if ($conf->global->MULTICOMPANY_PRODUCT_SHARING_ENABLED == 1) {
                 $consulta->where([
-                    ['rowid', $id, '='],
                     ['tosell', 1, '='],
+                    ['rowid', $id, '='],
+                   
                 ]);
             } else {
                 $consulta->where([
+                    ['tosell', 1, '='],
                     ['rowid', $id, '='],
                     ['entity', $conf->entity, '='],
-                    ['tosell', 1, '='],
+                    
                 ]);
             }
 
@@ -81,16 +83,17 @@ class ConsultaStockProductos
             if ($conf->global->MULTICOMPANY_PRODUCT_SHARING_ENABLED == 1) {
 
                 $consulta->where([
-                    ['ref LIKE "%' . $ref . '%" OR label LIKE "%' . $ref . '%" OR description LIKE "%' . $ref . '%"'],
                     ['tosell', 1, '='],
+                    ['ref LIKE "%' . $ref . '%" OR label LIKE "%' . $ref . '%" OR description LIKE "%' . $ref . '%"'],
                 ]);
 
             } else {
 
                 $consulta->where([
+                    ['tosell', 1, '='],
                     ['ref LIKE "%' . $ref . '%" OR label LIKE "%' . $ref . '%" OR description LIKE "%' . $ref . '%"'],
                     ['entity', $conf->entity, '='],
-                    ['tosell', 1, '='],
+                    
                 ]);
 
             }
@@ -104,7 +107,10 @@ class ConsultaStockProductos
                 $consulta->from(MAIN_DB_PREFIX . 'categorie_product');
                 $consulta->innerJoin(MAIN_DB_PREFIX . 'product', 'fk_product = rowid');
                 $consulta->where([
+                    [MAIN_DB_PREFIX . 'product.tosell', 1, '='],
                     [MAIN_DB_PREFIX . 'categorie_product.fk_categorie', $marca, '='],
+                     
+
                 ]);
 
             } else {
@@ -112,12 +118,14 @@ class ConsultaStockProductos
                 $consulta->from(MAIN_DB_PREFIX . 'categorie_product');
                 $consulta->innerJoin(MAIN_DB_PREFIX . 'product', 'fk_product = rowid');
                 $consulta->where([
+                    [MAIN_DB_PREFIX . 'product.tosell', 1, '='],
                     [MAIN_DB_PREFIX . 'categorie_product.fk_categorie', $marca, '='],
                     [MAIN_DB_PREFIX . 'product.entity', $conf->entity, '='],
+                     
+
                 ]);
             }
         }
-
         $resql = $db->query($consulta->toSql());
         $num = $db->num_rows($resql);
 
